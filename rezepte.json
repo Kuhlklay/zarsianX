@@ -1,0 +1,18 @@
+{
+  "Kohle": {
+    "input": [
+      { "material": "Kohle", "amount": 1 }
+    ],
+    "output": [
+      { "material": "Hartkohle", "amount": 1 }
+    ]
+  },
+  "Roheisen": {
+    "input": [
+      { "material": "Roheisen", "amount": 1 }
+    ],
+    "output": [
+      { "material": "Eisen", "amount": 1 }
+    ]
+  }
+}

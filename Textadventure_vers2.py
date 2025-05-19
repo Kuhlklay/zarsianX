@@ -1,6 +1,7 @@
 import time
 import random
 import asyncio
+import json
 
 # -----------------------------
 # Klasse Inventar
@@ -12,7 +13,7 @@ class Inventar:
         # Jeder Slot ist ein Dictionary mit "item" und "count"
         self.slots = []
         self.max_slots = 3
-        self.max_per_slot = 5
+        self.max_per_slot = 20
 
     def add_item(self, item, quantity=1):
         # Versuche, vorhandene Stapel zum Auffüllen zu verwenden
@@ -124,6 +125,33 @@ class Spieler:
         else:
             print("Inventar ist voll!")
 
+    def mine_material(self, material: str, anzahl: int = 1):
+        # Simuliere verschiedene Abbauzeiten je nach Material
+        mining_times = {
+            "kohle": self.spitzhacke.mining_time / 10,
+            "roheisen": max(self.spitzhacke.mining_time / 8, 0.5),
+        }
+        mat = material.lower()
+        if mat not in mining_times:
+            print(f"{material} kann hier nicht abgebaut werden.")
+            return
+        max_möglich = (self.inventar.max_slots * self.inventar.max_per_slot) - self.inventar.total_items()
+        if max_möglich <= 0:
+            print("Inventar ist voll!")
+            return
+        if anzahl is None or anzahl > max_möglich:
+            anzahl = max_möglich
+        if anzahl <= 0:
+            print("Kein Platz im Inventar!")
+            return
+        print(f"\n{self.name} schwingt die {self.spitzhacke} und versucht {anzahl}x {material} abzubauen...")
+        time.sleep(mining_times[mat] * anzahl)
+        hinzugefügt = self.inventar.add_item(material.capitalize(), anzahl)
+        if hinzugefügt:
+            print(f"{anzahl} {material.capitalize()} wurden abgebaut.")
+        else:
+            print(f"Nicht alles konnte ins Inventar aufgenommen werden.")
+
 # -----------------------------
 # Klasse Gustaf (Verarbeiter)
 # Mit Gustaf werden 15 Kohle in 15 Hartkohle umgewandelt.
@@ -131,19 +159,52 @@ class Spieler:
 class Gustaf:
     def __init__(self):
         self.name = "Gustaf der Verarbeiter"
+        self.rezepte = self.lade_rezepte()
 
-    def verarbeite_kohle(self, spieler: Spieler):
-        if spieler.inventar.has_item("Kohle", 15):
-            spieler.inventar.remove_item("Kohle", 15)
-            spieler.inventar.add_item("Hartkohle", 15)
-            print("Gustaf hat 15 Kohle in 15 Hartkohle verwandelt.")
+    def lade_rezepte(self):
+        try:
+            with open("rezepte.json", "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Fehler beim Laden der Rezepte: {e}")
+            return {}
+
+    def verarbeite(self, spieler: 'Spieler', material: str, anzahl: int = 1):
+        rezept = self.rezepte.get(material.capitalize())
+        if not rezept:
+            print(f"Kein Rezept für {material} gefunden.")
+            return
+        # Prüfe, wie oft das Rezept maximal ausgeführt werden kann
+        max_machbar = float('inf')
+        for inp in rezept["input"]:
+            vorrat = spieler.inventar.total_items_of(inp["material"])
+            max_machbar = min(max_machbar, vorrat // inp["amount"])
+        if max_machbar == 0:
+            print("Nicht genügend Materialien für die Verarbeitung.")
+            return
+        if anzahl is None or anzahl > max_machbar:
+            anzahl = max_machbar
+        # Entferne Input-Materialien
+        for inp in rezept["input"]:
+            if not spieler.inventar.remove_item(inp["material"], inp["amount"] * anzahl):
+                print(f"Nicht genügend {inp['material']} für die Verarbeitung.")
+                return
+        # Füge Output-Materialien hinzu
+        success = True
+        for out in rezept["output"]:
+            if not spieler.inventar.add_item(out["material"], out["amount"] * anzahl):
+                success = False
+                break
+        if success:
+            print(f"Gustaf hat {anzahl}x {material} verarbeitet.")
         else:
-            print("Nicht genügend Kohle für die Verarbeitung.")
+            # Rückgängig machen, falls kein Platz
+            for inp in rezept["input"]:
+                spieler.inventar.add_item(inp["material"], inp["amount"] * anzahl)
+            for out in rezept["output"]:
+                spieler.inventar.remove_item(out["material"], out["amount"] * anzahl)
+            print("Kein Platz im Inventar für das Ergebnis!")
 
-# -----------------------------
-# Klasse Anton (Aufwerter)
-# Anton kann mit 2 Hartkohle die Holzspitzhacke (Stufe 0) auf eine Steinspitzhacke (Stufe 1) upgraden.
-# -----------------------------
 class Anton:
     def __init__(self):
         self.name = "Anton der Aufwerter"
@@ -159,11 +220,6 @@ class Anton:
         else:
             print("Die Spitzhacke ist bereits aufgewertet oder ein Upgrade ist nicht verfügbar.")
 
-# -----------------------------
-# Klasse Vincent (Verkäufer)
-# Vincent verwendet 1 Hartkohle, um eine Antiquität herzustellen.
-# Die Antiquität erhält eine zufällige Rarität von "gewöhnlich" bis "sehr selten".
-# -----------------------------
 class Vincent:
     def __init__(self):
         self.name = "Vincent der Verkäufer"
@@ -179,10 +235,6 @@ class Vincent:
         else:
             print("Nicht genügend Hartkohle, um eine Antiquität herzustellen.")
 
-# -----------------------------
-# Klasse Antiquitaet
-# Erzeugt eine Antiquität mit zufälliger Rarität.
-# -----------------------------
 class Antiquitaet:
     def __init__(self):
         self.name = self.generate_name()
@@ -195,44 +247,30 @@ class Antiquitaet:
     def __str__(self):
         return self.name
 
-# -----------------------------
-# Hilfsmenü
-# Zeigt alle verfügbaren Befehle an.
-# -----------------------------
 def print_help():
     print("\nVerfügbare Befehle:")
-    print("  abbauen       - Baue manuell 1 Kohle ab.")
-    print("  inventar     - Zeige dein aktuelles Inventar.")
-    print("  status       - Zeige deinen Status (Standort, Spitzhacke, Inventar).")
-    print("  verarbeite   - Lasse Gustaf 15 Kohle in 15 Hartkohle umwandeln (benötigt 15 Kohle).")
-    print("  upgrade      - Lasse Anton deine Spitzhacke (Holz) mit 2 Hartkohle auf Stein upgraden.")
-    print("  antiquitaet  - Lasse Vincent eine Antiquität herstellen (benötigt 1 Hartkohle).")
-    print("  eisenmine    - Gehe mit 3 Hartkohle in die Eisenmine.")
-    print("  help/hilfe   - Zeige dieses Hilfsmenü an.")
-    print("  exit         - Beende das Spiel.\n")
+    print("  abbauen <material>   - Baue 1 Stück des angegebenen Materials ab (z.B. 'abbauen kohle').")
+    print("  inventar            - Zeige dein aktuelles Inventar.")
+    print("  status              - Zeige deinen Status (Standort, Spitzhacke, Inventar).")
+    print("  verarbeite <mat> <anzahl> - Lasse Gustaf Material nach Rezept verarbeiten (z.B. 'verarbeite roheisen 2').")
+    print("  upgrade             - Lasse Anton deine Spitzhacke (Holz) mit 2 Hartkohle auf Stein upgraden.")
+    print("  antiquitaet         - Lasse Vincent eine Antiquität herstellen (benötigt 1 Hartkohle).")
+    print("  eisenmine           - Gehe mit 3 Hartkohle in die Eisenmine.")
+    print("  help/hilfe          - Zeige dieses Hilfsmenü an.")
+    print("  exit                - Beende das Spiel.\n")
 
 # -----------------------------
-# Hauptspielfunktion
-# Der Spieler gibt seinen Namen ein und gelangt anschließend in eine interaktive Schleife,
-# in der er über Befehle (inklusive Hilfe) agieren kann.
+# Hauptspiel-Schleife
 # -----------------------------
-def main():
-    print("Willkommen zum Kohlenminen-Abenteuer!")
-    print("Anleitung:")
-    print(" - Du startest mit einer Holzspitzhacke in der Kohlenmine.")
-    print(" - Dein Inventar hat 3 Slots (jeweils bis zu 5 Items), also insgesamt 15 Items.")
-    print(" - Baue manuell Kohle ab, indem du den Befehl 'abbauen' eingibst.")
-    print(" - Sobald du 15 Kohle hast, kannst du zu Gustaf gehen, der Kohle in Hartkohle umwandelt.")
-    print(" - Mit Hartkohle kannst du deine Spitzhacke upgraden, Antiquitäten herstellen oder in die Eisenmine gehen.\n")
-    
-    name = input("Bitte gib deinen Spielernamen ein: ")
+def spiel_hauptschleife():
+    name = input("Bitte gib deinem Charakter einen Namen: ")
     spieler = Spieler(name)
     gustaf = Gustaf()
     anton = Anton()
     vincent = Vincent()
-    
-    print_help()
-    
+
+    print(f"\nWillkommen in der Welt von MineQuest, {spieler.name}!")
+    print("Du beginnst deine Reise in der Kohlenmine. Viel Erfolg!")
     while True:
         command = input("Bitte gib einen Befehl ein (tippe 'help' für das Hilfsmenü): ").strip().lower()
         if command in ["exit"]:
@@ -240,22 +278,34 @@ def main():
             break
         elif command in ["help", "hilfe"]:
             print_help()
-        elif command in ["abbauen", "mine"]:
-            spieler.mine_coal()
-        elif command in ["inventar"]:
+        elif command.startswith("abbauen"):
+            parts = command.split()
+            if len(parts) >= 2:
+                material = parts[1]
+                anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+                spieler.mine_material(material, anzahl)
+            else:
+                print("Bitte gib ein Material an, z.B. 'abbauen kohle' oder 'abbauen kohle 5'.")
+        elif command == "inventar":
             print("Aktuelles Inventar:", spieler.inventar)
-        elif command in ["status"]:
+        elif command == "status":
             print(f"\nSpieler: {spieler.name}")
             print(f"Standort: {spieler.location}")
             print(f"Spitzhacke: {spieler.spitzhacke}")
             print("Inventar:", spieler.inventar, "\n")
-        elif command in ["verarbeite"]:
-            gustaf.verarbeite_kohle(spieler)
-        elif command in ["upgrade"]:
+        elif command.startswith("verarbeite"):
+            parts = command.split()
+            if len(parts) >= 2:
+                material = parts[1]
+                anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
+                gustaf.verarbeite(spieler, material, anzahl)
+            else:
+                print("Bitte gib ein Material an, z.B. 'verarbeite roheisen 2'.")
+        elif command == "upgrade":
             anton.upgrade_pickaxe(spieler)
-        elif command in ["antiquitaet"]:
+        elif command == "antiquitaet":
             vincent.erstelle_antiquitaet(spieler)
-        elif command in ["eisenmine"]:
+        elif command == "eisenmine":
             if spieler.inventar.has_item("Hartkohle", 3):
                 spieler.inventar.remove_item("Hartkohle", 3)
                 spieler.location = "Eisenmine"
@@ -265,5 +315,5 @@ def main():
         else:
             print("Unbekannter Befehl. Bitte tippe 'help', um die verfügbaren Befehle anzuzeigen.")
 
-if __name__ == "__main__":
-    main()
+# Spiel starten
+spiel_hauptschleife()
