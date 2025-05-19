@@ -1,5 +1,6 @@
 import time
 import random
+import asyncio
 
 # -----------------------------
 # Klasse Inventar
