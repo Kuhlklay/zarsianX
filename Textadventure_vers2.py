@@ -11,7 +11,7 @@ class Inventar:
         # Jeder Slot ist ein Dictionary mit "item" und "count"
         self.slots = []
         self.max_slots = 3
-        self.max_per_slot = 5
+        self.max_per_slot = 50
 
     def add_item(self, item, quantity=1):
         # Versuche, vorhandene Stapel zum Auffüllen zu verwenden
@@ -114,7 +114,7 @@ class Spieler:
         if self.inventar.total_items() < self.inventar.max_slots * self.inventar.max_per_slot:
             print(f"\n{self.name} schwingt die {self.spitzhacke} und versucht Kohle abzubauen...")
             # Simuliere den Abbauprozess:
-            simulated_time = self.spitzhacke.mining_time / 10  # Beschleunigte Zeit für Demo-Zwecke
+            simulated_time = self.spitzhacke.mining_time  # Beschleunigte Zeit für Demo-Zwecke
             time.sleep(simulated_time)
             if self.inventar.add_item("Kohle", 1):
                 print("1 Kohle wurde abgebaut.")
