@@ -189,13 +189,13 @@ class Gustaf:
             with open("recipes.json", "r") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Fehler beim Laden der Rezepte: {e}")
+            print(color_text(f"Error while loading recipes: {e}", "#FF6961"))
             return {}
 
     def process(self, player: Player, material: str, amount: int = 1):
         recipe = self.recipes.get(material.capitalize())
         if not recipe:
-            print(f"Kein Rezept für {material} gefunden.")
+            print(color_text(f"No recipe found for {material}.", "#FF6961"))
             return
         # Prüfe, wie oft das Rezept maximal ausgeführt werden kann
         max_machbar = float('inf')
@@ -203,14 +203,14 @@ class Gustaf:
             vorrat = player.inventory.total_items_of(inp["material"])
             max_machbar = min(max_machbar, vorrat // inp["amount"])
         if max_machbar == 0:
-            print("Nicht genügend Materialien für die Verarbeitung.")
+            print(color_text("Not enough materials for processing.", "#FF6961"))
             return
         if amount is None or amount > max_machbar:
             amount = max_machbar
         # Entferne Input-Materialien
         for inp in recipe["input"]:
             if not player.inventory.remove_item(inp["material"], inp["amount"] * amount):
-                print(f"Nicht genügend {inp['material']} für die Verarbeitung.")
+                print(color_text(f"Not enough {inp['material']} for processing.", "#FF6961"))
                 return
         # Füge Output-Materialien hinzu
         success = True
@@ -226,9 +226,9 @@ class Gustaf:
                 player.inventory.add_item(inp["material"], inp["amount"] * amount)
             for out in recipe["output"]:
                 player.inventory.remove_item(out["material"], out["amount"] * amount)
-            print("Kein Platz im Inventar für das Ergebnis!")
+            print(color_text("No room in inventory for the result!", "#FF6961"))
 
-class Anton:
+class Upgrader:
     def __init__(self):
         self.name = "Anton der Aufwerter"
 
@@ -243,29 +243,29 @@ class Anton:
         else:
             print("Die Pickaxe ist bereits aufgewertet oder ein Upgrade ist nicht verfügbar.")
 
-class Vincent:
+class Bizman: # short for Businessman
     def __init__(self):
-        self.name = "Vincent der Verkäufer"
+        self.name = "Bizman"
 
     def erstelle_antiquitaet(self, player: Player):
         if player.inventory.has_item("Hartkohle", 1):
             player.inventory.remove_item("Hartkohle", 1)
-            antiquitaet = Antiquitaet()
+            antiquitaet = Antiquity()
             if player.inventory.add_item(antiquitaet.name, 1):
-                print(f"Vincent hat eine Antiquität '{antiquitaet.name}' erzeugt!")
+                print(f"Bizman forged a '{antiquitaet.name}'!")
             else:
-                print("There's no room in your backpack for this antiquity!")
+                print(color_text("There's no room in your backpack for this antiquity!", "#FF6961"))
         else:
-            print("Not enough coal to create an antiquity.")
+            print(color_text("Not enough coal to create an antiquity.", "#FF6961"))
 
-class Antiquitaet:
+class Antiquity:
     def __init__(self):
         self.name = self.generate_name()
 
     def generate_name(self):
-        rarities = ["gewöhnlich", "selten", "sehr selten"]
+        rarities = ["common", "uncommon", "rare", "epic", "legendary"]
         rarity = random.choice(rarities)
-        return f"Antiquität ({rarity})"
+        return f"Antiquity ({rarity})"
 
     def __str__(self):
         return self.name
@@ -274,22 +274,24 @@ class Antiquitaet:
 # Hilfsfunktionen
 def print_help():
     # TODO: add more commands, translate to english
-    print("\nAvailable commands:")
-    print("  mine <material> <amount> - Mine a specific amount of the specified material (e.g. 'mine coal 5').")
-    print("  inventory            - Show your current inventory.")
-    print("  status              - Show your status (location, pickaxe, inventory).")
-    print("  process <recipe> <amount> - Let Gustaf process material according to the recipe (e.g. 'process raw_iron 2').")
-    print("  upgrade             - Let Anton upgrade your pickaxe (wood) to stone with 2 hard coal.")
-    print("  antiquity           - Let Vincent create an antiquity (requires 1 hard coal).")
-    print("  help                - Show this help menu.")
-    print("  exit                - Exit the game.\n")
+    #dynamic way to print all the commands with accurate spacing to the longest command
+    commands = [
+        ("mine <material> <amount>", "Mine a specific amount of the specified material (e.g. 'mine coal 5')."),
+        ("inventory", "Show your current inventory."),
+        ("status", "Show your status (location, pickaxe, inventory)."),
+        ("process <recipe> <amount>", "Let Gustaf process material according to the recipe (e.g. 'process raw_iron 2')."),
+        ("upgrade", "Let Upgrader upgrade your pickaxe (wood) to stone with 2 hard coal."),
+        ("antiquity", "Let Bizman create an antiquity (requires 1 hard coal)."),
+        ("help", "Show this help menu."),
+        ("exit", "Exit the game.")
+    ]
 
-# ASCII Art für den Titel
-#  _____               _            __  __
-# / _  / __ _ _ __ ___(_) __ _ _ __ \ \/ /
-# \// / / _` | '__/ __| |/ _` | '_ \ \  / 
-#  / //\ (_| | |  \__ \ | (_| | | | |/  \ 
-# /____/\__,_|_|  |___/_|\__,_|_| |_/_/\_\
+    # gets all the lengths of the commands and finds the longest one to make the spacing dynamic
+    max_length = max(len(command[0]) for command in commands) + 2
+    print("\nAvailable commands:")
+    for command, description in commands:
+        print(f"  {command:<{max_length}} - {description}")
+    print("\n")
 
 # Gradients:
 # #FBC2EB -> #A6C1EE
@@ -297,10 +299,18 @@ def print_help():
 
 ascii_art_logo = """
   _____               _            __  __
- / _  / __ _ _ __ ___(_) __ _ _ __ \ \/ /
- \// / / _` | '__/ __| |/ _` | '_ \ \  /
-  / //\ (_| | |  \__ \ | (_| | | | |/  \\
- /____/\__,_|_|  |___/_|\__,_|_| |_/_/\_\\
+ / _  / __ _ _ __ ___(_) __ _ _ __ \\ \\/ /
+ \\// / / _` | '__/ __| |/ _` | '_ \\ \\  /
+  / //\\ (_| | |  \__ \\ | (_| | | | |/  \\
+ /____/\\__,_|_|  |___/_|\\__,_|_| |_/_/\\_\\
+
+ 
+███████╗░█████╗░██████╗░░██████╗██╗░█████╗░███╗░░██╗░██╗░░██╗
+╚════██║██╔══██╗██╔══██╗██╔════╝██║██╔══██╗████╗░██║░╚██╗██╔╝
+░░███╔═╝███████║██████╔╝╚█████╗░██║███████║██╔██╗██║░░╚███╔╝░
+██╔══╝░░██╔══██║██╔══██╗░╚═══██╗██║██╔══██║██║╚████║░░██╔██╗░
+███████╗██║░░██║██║░░██║██████╔╝██║██║░░██║██║░╚███║░██╔╝╚██╗
+╚══════╝╚═╝░░╚═╝╚═╝░░╚═╝╚═════╝░╚═╝╚═╝░░╚═╝╚═╝░░╚══╝░╚═╝░░╚═╝
 """
 
 ascii_art_planet = """
@@ -394,11 +404,11 @@ def obfuscate_text(text: str) -> str:
 # -----------------------------
 def main():
     print(gradient_text(ascii_art_logo, ("#FBC2EB", "#A6C1EE"), "lr"))
-    name = input("\nWie soll dein Pionier heißen? # ")
+    name = input("\nWhat's your name again? # ")
     player = Player(name)
     gustaf = Gustaf()
-    anton = Anton()
-    vincent = Vincent()
+    anton = Upgrader()
+    vincent = Bizman()
 
     print(gradient_text(ascii_art_planet ,("#E4BDD4", "#4839A1"), "td"))
     print(f"""\nWelcome on board of the {gradient_text("ZarsianX", ("#E4BDD4", "#4839A1"), "lr")}, pioneer {color_text(player.name, "#FBC2EB")}! We're approaching {gradient_text("Zars P14a", ("#FBC2EB", "#A6C1EE"), "lr")}.
@@ -408,9 +418,15 @@ Equipped with nothing more than a simple wooden pickaxe, you begin your adventur
 
 Use the commands at your disposal to mine resources, have them processed by Gustaf, upgrade your pickaxe with Anton, or create mysterious antiquities with Vincent. If you have enough hard coal, you can even enter the dangerous iron mine.
 
+Initiating planetfall! Deploying parachute... Skipping parachute... Skipping parachute...! Sk.. i.. {obfuscate_text("ipping parachute!")}...
+Planetfall achieved! Now it's your turn...
+
+Pioneer acceptable! Toolbox opened!
+          
 Type '{color_text("help", "#A7E06F")}' to see all available commands.
-Initializing landing!
-Good luck, {color_text(player.name, "#FBC2EB")}.\n""")
+
+Good luck, {color_text(player.name, "#FBC2EB")}.
+- And remember: Humanity counts on you!\n""")
     while True:
         command = input("What do you want to do, pioneer? # ").strip().lower()
         if command in ["exit"]:
