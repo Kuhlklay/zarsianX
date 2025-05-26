@@ -28,5 +28,25 @@
             "max": 1,
             "rate": 1.0
         }
+    },
+    "gold": {
+        "mining_time": 3.5,
+        "output": "Raw Gold",
+        "mining_level": 2,
+        "drop_rates": {
+            "min": 1,
+            "max": 2,
+            "rate": 0.04
+        }
+    },
+    "diamond": {
+        "mining_time": 5,
+        "output": "Raw Diamond",
+        "mining_level": 3,
+        "drop_rates": {
+            "min": 1,
+            "max": 2,
+            "rate": 0.02
+        }
     }
 }
