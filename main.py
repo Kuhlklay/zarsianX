@@ -62,21 +62,21 @@ class Inventory:
     
     def __str__(self):  
         if not self.slots:
-            return "Inventar ist leer."
+            return "Inventory is empty."
         output = "\n╔════════════════╦════════╗\n"
-        output += "║ Item           ║ Menge  ║\n"
+        output += "║ Item           ║ Amount ║\n"
         output += "╠════════════════╬════════╣\n"
         for slot in self.slots:
             output += f"║ {slot['item']:<14} ║ {slot['count']:>5}x ║\n"
         output += "╚════════════════╩════════╝"
-        output += f"\nGesamt: {self.total_items()} Items"
+        output += f"\nTotal: {self.total_items()} Items"
         output += f"\nRwo: {self.owner.money}"
         return output
 
 class Pickaxe:
     def __init__(self):
         self.level_names = ["Wood", "Stone", "Iron", "Gold", "Diamond"]
-        self.level = 0  # Start: Wood
+        self.level = 3  # Start: Wood = 0
         self.set_mining_time()
 
     def upgrade(self):
@@ -179,7 +179,7 @@ class Player:
         else:
             print(color_text(f"Not enough money! You have only {self.money} (Rwo).", "#FF6961"))
 
-class Gustaf:
+class Processor:
     def __init__(self):
         self.name = "Gustaf der Verarbeiter"
         self.recipes = self.load_json()
@@ -247,12 +247,12 @@ class Bizman: # short for Businessman
     def __init__(self):
         self.name = "Bizman"
 
-    def erstelle_antiquitaet(self, player: Player):
+    def create_antiquity(self, player: Player):
         if player.inventory.has_item("Hartkohle", 1):
-            player.inventory.remove_item("Hartkohle", 1)
-            antiquitaet = Antiquity()
-            if player.inventory.add_item(antiquitaet.name, 1):
-                print(f"Bizman forged a '{antiquitaet.name}'!")
+            player.inventory.remove_item("hard_coal", 1)
+            antiquity = Antiquity()
+            if player.inventory.add_item(antiquity.name, 1):
+                print(f"Bizman forged a '{antiquity.name}'!")
             else:
                 print(color_text("There's no room in your backpack for this antiquity!", "#FF6961"))
         else:
@@ -271,9 +271,8 @@ class Antiquity:
         return self.name
     
 # -----------------------------
-# Hilfsfunktionen
+# Helper functions
 def print_help():
-    # TODO: add more commands, translate to english
     #dynamic way to print all the commands with accurate spacing to the longest command
     commands = [
         ("mine <material> <amount>", "Mine a specific amount of the specified material (e.g. 'mine coal 5')."),
@@ -406,7 +405,7 @@ def main():
     print(gradient_text(ascii_art_logo, ("#FBC2EB", "#A6C1EE"), "lr"))
     name = input("\nWhat's your name again? # ")
     player = Player(name)
-    gustaf = Gustaf()
+    gustaf = Processor()
     anton = Upgrader()
     vincent = Bizman()
 
@@ -448,18 +447,18 @@ Good luck, {color_text(player.name, "#FBC2EB")}.
             print(f"\nPlayer: {player.name}")
             print(f"Pickaxe: {player.pickaxe}")
             print("Inventory:", player.inventory, "\n")
-        elif command.startswith("craft"):
+        elif command.startswith("process"):
             parts = command.split()
             if len(parts) >= 2:
                 material = parts[1]
                 anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
-                gustaf.craft(player, material, anzahl)
+                gustaf.process(player, material, anzahl)
             else:
-                print("Pioneer! Provide a material, e.g. 'craft iron'.")
+                print("Pioneer! Provide a material, e.g. 'process iron'.")
         elif command == "upgrade":
             anton.upgrade_pickaxe(player)
-        elif command == "antiquitaet":
-            vincent.erstelle_antiquitaet(player)
+        elif command == "antiquity":
+            vincent.create_antiquity(player)
         else:
             print("Pioneer! We don't know this one. Please type 'help' to see the available commands.")
 

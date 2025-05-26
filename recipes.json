@@ -1,18 +1,18 @@
 {
-  "Kohle": {
+  "hard_coal": {
     "input": [
-      { "material": "Kohle", "amount": 1 }
+      { "material": "coal", "amount": 1 }
     ],
     "output": [
-      { "material": "Hartkohle", "amount": 1 }
+      { "material": "hard_coal", "amount": 1 }
     ]
   },
-  "Roheisen": {
+  "iron": {
     "input": [
-      { "material": "Roheisen", "amount": 1 }
+      { "material": "raw_iron", "amount": 1 }
     ],
     "output": [
-      { "material": "Eisen", "amount": 1 }
+      { "material": "iron", "amount": 1 }
     ]
   }
 }
