@@ -139,7 +139,7 @@ class Player:
             print(color_text("No space in inventory!", "#FF6961"))
             return
 
-        print(f"\n{self.name} is using a {self.pickaxe} Pickaxe trying to mine {amount}x {material}...")
+        print(f"\n{self.name} is using a {self.pickaxe} trying to mine {amount}x {material}...")
 
         # Mining-Zeit basierend auf Material und Menge
         total_time = data["mining_time"] * amount * self.pickaxe.mining_time
