@@ -181,7 +181,7 @@ class Player:
 
 class Processor:
     def __init__(self):
-        self.name = "Gustaf der Verarbeiter"
+        self.name = "Gustaf the Processor"
         self.recipes = self.load_json()
 
     def load_json(self):
@@ -193,14 +193,18 @@ class Processor:
             return {}
 
     def process(self, player: Player, material: str, amount: int = 1):
-        recipe = self.recipes.get(material.capitalize())
+        recipe = self.recipes.get(material)
         if not recipe:
             print(color_text(f"No recipe found for {material}.", "#FF6961"))
             return
         # Prüfe, wie oft das Rezept maximal ausgeführt werden kann
         max_machbar = float('inf')
         for inp in recipe["input"]:
-            vorrat = player.inventory.total_items_of(inp["material"])
+            vorrat = player.inventory.total_items_of(inp["material"].capitalize().replace(" ", "_"))
+            print(f"Checking {inp['material']}: {vorrat} available, {inp['amount']} required per unit.")
+            if vorrat < inp["amount"]:
+                print(color_text(f"Not enough {inp['material']} for processing.", "#FF6961"))
+                return
             max_machbar = min(max_machbar, vorrat // inp["amount"])
         if max_machbar == 0:
             print(color_text("Not enough materials for processing.", "#FF6961"))

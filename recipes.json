@@ -4,7 +4,7 @@
       { "material": "coal", "amount": 9 }
     ],
     "output": [
-      { "material": "hard_coal", "amount": 1 }
+      { "material": "coal_block", "amount": 1 }
     ]
   },
   "iron": {
