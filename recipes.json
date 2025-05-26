@@ -1,18 +1,52 @@
 {
-  "hard_coal": {
-    "input": [
-      { "material": "coal", "amount": 1 }
-    ],
-    "output": [
-      { "material": "hard_coal", "amount": 1 }
-    ]
-  },
-  "iron": {
-    "input": [
-      { "material": "raw_iron", "amount": 1 }
-    ],
-    "output": [
-      { "material": "iron", "amount": 1 }
-    ]
-  }
+    "coal": {
+        "mining_time": 2,
+        "output": "Coal",
+        "mining_level": 0,
+        "drop_rates": {
+            "min": 1,
+            "max": 3,
+            "rate": 0.2
+        }
+    },
+    "iron": {
+        "mining_time": 3,
+        "output": "Raw Iron",
+        "mining_level": 1,
+        "drop_rates": {
+            "min": 1,
+            "max": 2,
+            "rate": 0.07
+        }
+    },
+    "stone": {
+        "mining_time": 1.5,
+        "output": "Cobbled Stone",
+        "mining_level": 0,
+        "drop_rates": {
+            "min": 1,
+            "max": 1,
+            "rate": 1.0
+        }
+    },
+    "gold": {
+        "mining_time": 3.5,
+        "output": "Raw Gold",
+        "mining_level": 2,
+        "drop_rates": {
+            "min": 1,
+            "max": 2,
+            "rate": 0.04
+        }
+    },
+    "diamond": {
+        "mining_time": 5,
+        "output": "Raw Diamond",
+        "mining_level": 3,
+        "drop_rates": {
+            "min": 1,
+            "max": 2,
+            "rate": 0.02
+        }
+    }
 }
