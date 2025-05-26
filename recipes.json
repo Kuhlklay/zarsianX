@@ -48,5 +48,13 @@
             "max": 2,
             "rate": 0.02
         }
-    }
+    },
+  "Pflasterstein": {
+    "input": [
+      { "material": "Pflasterstein", "amount": 1 }
+    ],
+    "output": [
+      { "material": "Stein", "amount": 1 }
+    ]
+  }
 }
