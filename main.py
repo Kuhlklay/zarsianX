@@ -1,236 +1,236 @@
+import difflib
 import time
 import random
-# import asyncio
-import json
 import string
+from enum import Enum
+from registry import *
+
+class LogLevel(Enum):
+    ERROR = {"color": "#FF6961", "symbol": "⊘"}
+    WARNING = {"color": "#FFB561", "symbol": "⊜"}
+    TIP = {"color": "#6A7EAC", "symbol": "⊙"}
+    
+def log(message: str, level: LogLevel) -> str:
+    color = level.value["color"]
+    symbol = level.value["symbol"]
+    return f"{colorText(symbol, color)} {message}"
 
 class Inventory:
     def __init__(self, owner=None):
         self.owner = owner
         # Every slot is a Dictionary with "item" and "count"
         self.slots = []
-        self.max_slots = 5
-        self.max_per_slot = 20
+        self.maxSlots = 16
+        self.stack = 32
 
-    def add_item(self, item, quantity=1):
+    def addItem(self, item: Item, quantity=1):
         # Try to use existing stacks to fill up
         for slot in self.slots:
-            if slot["item"] == item and slot["count"] < self.max_per_slot:
-                space = self.max_per_slot - slot["count"]
-                add_here = min(space, quantity)
-                slot["count"] += add_here
-                quantity -= add_here
+            if slot["item"] == item and slot["count"] < self.stack:
+                space = self.stack - slot["count"]
+                add = min(space, quantity)
+                slot["count"] += add
+                quantity -= add
                 if quantity == 0:
                     return True
         # If quantity is remaining, add new slots – if there is still space in the inventory
         while quantity > 0:
-            if len(self.slots) < self.max_slots:
-                add_here = min(self.max_per_slot, quantity)
-                self.slots.append({"item": item, "count": add_here})
-                quantity -= add_here
+            if len(self.slots) < self.maxSlots:
+                add = min(self.stack, quantity)
+                self.slots.append({"item": item, "count": add})
+                quantity -= add
             else:
-                print(color_text(f"Not enough free space in inventory for {item}!", "#FF6961"))
+                print(log(f"Not enough free space in inventory for {item}!", LogLevel.WARNING))
                 return False
         return True
 
-    def remove_item(self, item, quantity=1):
+    def removeItem(self, item: Item, quantity=1):
         removed = 0
         for slot in self.slots:
             if slot["item"] == item:
-                can_remove = min(slot["count"], quantity - removed)
-                slot["count"] -= can_remove
-                removed += can_remove
+                canRemove = min(slot["count"], quantity - removed)
+                slot["count"] -= canRemove
+                removed += canRemove
         # Leere Slots entfernen
         self.slots = [slot for slot in self.slots if slot["count"] > 0]
         if removed < quantity:
-            print(color_text(f"Not enough {item} to remove!", "#FF6961"))
+            print(log(f"Not enough {item} to remove!", LogLevel.WARNING))
             return False
         return True
 
-    def total_items_of(self, item):
+    def totalItemsOf(self, item: Item):
         total = 0
         for slot in self.slots:
             if slot["item"] == item:
                 total += slot["count"]
         return total
 
-    def total_items(self):
+    def totalItems(self):
         return sum(slot["count"] for slot in self.slots)
 
-    def has_item(self, item, quantity=1):
-        return self.total_items_of(item) >= quantity
-    
-    def __str__(self):  
-        if not self.slots:
-            return "Inventory is empty."
-        output = "\n╔════════════════╦════════╗\n"
-        output += "║ Item           ║ Amount ║\n"
-        output += "╠════════════════╬════════╣\n"
-        for slot in self.slots:
-            output += f"║ {slot['item']:<14} ║ {slot['count']:>5}x ║\n"
-        output += "╚════════════════╩════════╝"
-        output += f"\nTotal: {self.total_items()} Items"
-        output += f"\nRwo: {self.owner.money}"
-        return output
-
-class Pickaxe:
-    def __init__(self):
-        self.level_names = ["Wood", "Stone", "Iron", "Gold", "Diamond"]
-        self.level = 3  # Start: Wood = 0
-        self.set_mining_time()
-
-    def upgrade(self):
-        if self.level < len(self.level_names) - 1:
-            self.level += 1
-            self.set_mining_time()
-            print(f"Pickaxe upgraded to {self.level_names[self.level]}!")
-        else:
-            print("Maximum upgrade level reached!")
-
-    def set_mining_time(self):
-        # TODO: fetch from JSON file
-        # Festgelegte Zeiten – in einem echten Spiel wären dies z. B. 20s bei Wood, 8s bei Stone etc.
-        # Hier wird jedoch ein Faktor 1/10 verwendet, um das Testen zu erleichtern.
-        if self.level_names[self.level] == "Wood":
-            self.mining_time = 2  # Sekunden
-        elif self.level_names[self.level] == "Stone":
-            self.mining_time = 1.6  # Sekunden
-        else:
-            # Für höhere Stufen ein Standardwert
-            self.mining_time = 2  # Sekunden
+    def hasItem(self, item: Item, quantity=1):
+        return self.totalItemsOf(item) >= quantity
 
     def __str__(self):
-        return f"{self.level_names[self.level]} Pickaxe"
+        if not self.slots:
+            print()
+            return log("Inventory is empty!\n", LogLevel.WARNING)
+        output = "\n╭───────────────────────────┬────────╮\n"
+        output += "│ Item                      │ Amount │\n"
+        output += "├───────────────────────────┼────────┤\n"
+        for slot in self.slots:
+            output += f"│ {slot['item'].name:<25} │ {slot['count']:>5}x │\n"
+        output += "├─────────────┬─────────────┴────────┤\n"
+        output += f"│ Total Items │ {self.totalItems():>20} │\n"
+        output += f"│ Money       │ {(self.owner.displayMoney() if self.owner else 'N/A'):>20} │\n"
+        output += "╰─────────────┴──────────────────────╯"
+        return output
+
+#class Pickaxe:
+#    def __init__(self):
+#        self.level = 0
+#
+#    def upgrade(self):
+#        if self.level < 4:
+#            self.level += 1
+#            print(f"Pickaxe upgraded to {self.level_names[self.level]}!")
+#        else:
+#            print(log("Maximum upgrade level reached!", LogLevel.WARNING))
+#
+#    def __str__(self):
+#        return f"{self.level_names[self.level]} Pickaxe"
 
 class Player:
     def __init__(self, name):
         self.name = name
         self.inventory = Inventory(owner=self)
-        self.pickaxe = Pickaxe()
+        self.pickaxe = Tool.get("test_tool")  # Start with a test tool
         self.money = 0  # Währung の (Rwo)
 
-        with open("mining.json", "r") as f:
-            global mining_data
-            mining_data = json.load(f)
-
     def mine(self, material: str, amount: int = 1):
-        mat = material.lower()
-        
-        if mat not in mining_data:
-            print(f"{material} can't be mined because it does not exist.")
+        block = Block.get(material.lower())
+
+        if not block:
+            print(log(f"Can not mine {block.name} because it does not exist.", LogLevel.WARNING))
             return
 
-        data = mining_data[mat]
-        
         # Check ob Pickaxe-Level ausreicht
-        if self.pickaxe.level < data["mining_level"]:
-            print(color_text(f"Your pickaxe is too weak to mine {material}.", "#FF6961"))
+        if self.pickaxe.miningLevel < block.miningLevel:
+            print(log(f"Your pickaxe is too weak to mine {block.name}.", LogLevel.WARNING))
             return
 
         # Verfügbare Inventar-Kapazität prüfen
-        max_moeglich = (self.inventory.max_slots * self.inventory.max_per_slot) - self.inventory.total_items()
-        if max_moeglich <= 0:
-            print(color_text("Inventory is full!", "#FF6961"))
+        possible = (self.inventory.maxSlots * self.inventory.stack) - self.inventory.totalItems()
+        if possible <= 0:
+            print(log("Inventory is full!", LogLevel.WARNING))
             return
 
-        if amount is None or amount > max_moeglich:
-            amount = max_moeglich
+        if amount is None or amount > possible:
+            amount = possible
         if amount <= 0:
-            print(color_text("No space in inventory!", "#FF6961"))
+            print(log("No space in inventory!", LogLevel.WARNING))
             return
 
-        print(f"\n{self.name} is using a {self.pickaxe} trying to mine {amount}x {material}...")
+        print(f"\n{colorText(self.name, '#6A7EAC')} is using a {self.pickaxe.name} trying to mine {amount}x {block.name}...")
 
         # Mining-Zeit basierend auf Material und Menge
-        total_time = data["mining_time"] * amount * self.pickaxe.mining_time
-        time.sleep(total_time)
+        totalTime = block.miningTime * amount / self.pickaxe.timeFac
+        time.sleep(totalTime)
 
-        total_obtained = 0
+        total = 0
         for _ in range(amount):
-            drops = data["drop_rates"]
-            current = drops["min"]
-            chance = drops["rate"]
+            drops = block.dropRates
+            _min = drops.getRateFor(DropRateEnum.MIN)
+            _max = drops.getRateFor(DropRateEnum.MAX)
+            #print(f"Drops for {block.name}: {_min}x (min), {_max}x (max), rate: {drops.getRateFor(DropRateEnum.RATE)}")
             # Berechne zusätzlichen Drop basierend auf der Rate
-            while current < drops["max"]:
-                if random.random() <= chance:
-                    current += 1
+            while _min < _max:
+                if random.random() <= drops.getRateFor(DropRateEnum.RATE):
+                    _min += 1
                 else:
                     break
-            total_obtained += current
+            total += _min
 
-        hinzugefügt = self.inventory.add_item(data["output"], total_obtained)
+        added = self.inventory.addItem(block.dropItem, total)
 
-        if hinzugefügt:
-            print(f"You've mined {amount}x {material} and received {total_obtained}x {data['output']}.")
+        if added:
+            print(f"You've mined {amount}x {block.name} and received {total}x {block.dropItem.name}.\n")
         else:
-            print(color_text("Not all items could be added to the inventory.", "#FF6961"))
-            
-    def has_money(self, amount):
+            print(colorText("Not all items could be added to the inventory.", "#FF6961"))
+            print(colorText("Go clean it up.\n", "#FF6961"))
+
+    def hasMoney(self, amount):
         return self.money >= amount
-    
-    def add_money(self, amount):
-        self.money += amount
-        print(f"Added {amount} (Rwo) to your account. Total: {self.money} (Rwo)")
 
-    def remove_money(self, amount):
-        if self.has_money(amount):
+    def addMoney(self, amount):
+        self.money += amount
+        print(f"Added {self.displayMoney()} to your account. Total: {self.money} (Rwo)")
+
+    def removeMoney(self, amount):
+        if self.hasMoney(amount):
             self.money -= amount
-            print(f"Removed {amount} (Rwo) from your account. Total: {self.money} (Rwo)")
+            print(f"Removed {self.displayMoney()} from your account. Total: {self.money} (Rwo)")
         else:
-            print(color_text(f"Not enough money! You have only {self.money} (Rwo).", "#FF6961"))
+            print(log(f"Not enough money! You have only {self.displayMoney()}.", LogLevel.WARNING))
+
+    def displayMoney(self):
+        return f"{self.money}⍹ (Wro)"
 
 class Processor:
     def __init__(self):
-        self.name = "Gustaf the Processor"
-        self.recipes = self.load_json()
+        self.name = "Gustavu the Processor"
 
-    def load_json(self):
-        try:
-            with open("recipes.json", "r") as f:
-                return json.load(f)
-        except Exception as e:
-            print(color_text(f"Error while loading recipes: {e}", "#FF6961"))
-            return {}
-
-    def process(self, player: Player, material: str, amount: int = 1):
-        recipe = self.recipes.get(material)
+    def process(self, player: Player, recipe: Recipe, amount: int = 1):
         if not recipe:
-            print(color_text(f"No recipe found for {material}.", "#FF6961"))
+            print(log(f"No recipe found for {recipe}.", LogLevel.WARNING))
             return
+        
         # Prüfe, wie oft das Rezept maximal ausgeführt werden kann
-        max_machbar = float('inf')
-        for inp in recipe["input"]:
-            vorrat = player.inventory.total_items_of(inp["material"].capitalize().replace(" ", "_"))
-            print(f"Checking {inp['material']}: {vorrat} available, {inp['amount']} required per unit.")
-            if vorrat < inp["amount"]:
-                print(color_text(f"Not enough {inp['material']} for processing.", "#FF6961"))
+        possible = float('inf')
+        for inp in recipe.inputs:
+            available = player.inventory.totalItemsOf(inp[0])
+            print(f"Checking {inp[0].name}: max {available} available, {inp[1]} required per unit.")
+            if available < inp[1]:
+                print(log(f"Not enough {inp[0]} for processing.", LogLevel.WARNING))
                 return
-            max_machbar = min(max_machbar, vorrat // inp["amount"])
-        if max_machbar == 0:
-            print(color_text("Not enough materials for processing.", "#FF6961"))
+            possible = min(possible, available // inp[1])
+        
+        if possible == 0:
+            print(log("Not enough materials for processing.", LogLevel.WARNING))
             return
-        if amount is None or amount > max_machbar:
-            amount = max_machbar
+        
+        # Handle amount: default to 1 if None, reject if < 1, cap if > possible
+        if amount is None:
+            amount = 1
+        if amount < 1:
+            print(log("Amount must be at least 1.", LogLevel.WARNING))
+            return
+        if amount > possible:
+            print(log(f"Cannot process {amount}x {recipe.ID}. Only {possible} possible due to limited materials.", LogLevel.WARNING))
+            return
+        
         # Entferne Input-Materialien
-        for inp in recipe["input"]:
-            if not player.inventory.remove_item(inp["material"], inp["amount"] * amount):
-                print(color_text(f"Not enough {inp['material']} for processing.", "#FF6961"))
+        for inp in recipe.inputs:
+            if not player.inventory.removeItem(inp[0], inp[1] * amount):
+                print(log(f"Not enough {inp[0]} for processing.", LogLevel.WARNING))
                 return
+        
         # Füge Output-Materialien hinzu
         success = True
-        for out in recipe["output"]:
-            if not player.inventory.add_item(out["material"], out["amount"] * amount):
+        for out in recipe.outputs:
+            if not player.inventory.addItem(out[0], out[1] * amount):
                 success = False
                 break
+        
         if success:
-            print(f"Gustaf hat {amount}x {material} verarbeitet.")
+            print(f"Gustavu has processed {amount}x {recipe.ID} successfully!")
         else:
             # Rückgängig machen, falls kein Platz
-            for inp in recipe["input"]:
-                player.inventory.add_item(inp["material"], inp["amount"] * amount)
-            for out in recipe["output"]:
-                player.inventory.remove_item(out["material"], out["amount"] * amount)
-            print(color_text("No room in inventory for the result!", "#FF6961"))
+            for inp in recipe.inputs:
+                player.inventory.addItem(inp[0], inp[1] * amount)
+            for out in recipe.outputs:
+                player.inventory.removeItem(out[0], out[1] * amount)
+            print(colorText("No room in inventory for the result!", "#FF6961"))
 
 class Upgrader:
     def __init__(self):
@@ -258,9 +258,9 @@ class Bizman: # short for Businessman
             if player.inventory.add_item(antiquity.name, 1):
                 print(f"Bizman forged a '{antiquity.name}'!")
             else:
-                print(color_text("There's no room in your backpack for this antiquity!", "#FF6961"))
+                print(colorText("There's no room in your backpack for this antiquity!", "#FF6961"))
         else:
-            print(color_text("Not enough coal to create an antiquity.", "#FF6961"))
+            print(colorText("Not enough coal to create an antiquity.", "#FF6961"))
 
 class Antiquity:
     def __init__(self):
@@ -276,25 +276,121 @@ class Antiquity:
     
 # -----------------------------
 # Helper functions
-def print_help():
+
+def wordWrap(text: str, n: int = 50) -> list[str]:
+    words = text.split()
+    lines = []
+    current = ""
+
+    for word in words:
+        # Prüfe, ob das Hinzufügen des nächsten Wortes die Zeile überschreiten würde
+        if len(current) + len(word) + (1 if current else 0) > n:
+            lines.append(current)
+            current = word
+        else:
+            current += (" " if current else "") + word
+    if current:
+        lines.append(current)
+    return lines
+
+def printHelp():
     #dynamic way to print all the commands with accurate spacing to the longest command
     commands = [
-        ("mine <material> <amount>", "Mine a specific amount of the specified material (e.g. 'mine coal 5')."),
-        ("inventory", "Show your current inventory."),
-        ("status", "Show your status (location, pickaxe, inventory)."),
-        ("process <recipe> <amount>", "Let Gustaf process material according to the recipe (e.g. 'process raw_iron 2')."),
-        ("upgrade", "Let Upgrader upgrade your pickaxe (wood) to stone with 2 hard coal."),
-        ("antiquity", "Let Bizman create an antiquity (requires 1 hard coal)."),
-        ("help", "Show this help menu."),
-        ("exit", "Exit the game.")
+        ("last", [(None, "Execute the last command again (excl. 'last', 'inventory', 'recipe', 'help' & 'exit')")]),
+        ("mine", [("<material> <amount>?1", "Mine a material of additional count (e.g. '... coal 5')")]),
+        ("inventory", [(None, "Show your current inventory")]),
+        ("status", [(None, "Show your status (name, tool, inventory)")]),
+        ("process", [("<recipe> <amount>?1", "Process material according to the recipe (e.g. '... iron_ingot 2')")]),
+        ("recipe", [
+            ("search <term>", "Search for a recipe name"),
+            ("get|show <name>", "Get a recipe by name")
+        ]),
+        #("upgrade", "Let Upgrader upgrade your pickaxe (wood) to stone with 2 hard coal."),
+        #("antiquity", "Let Bizman create an antiquity."),
+        ("help", [(None, "Show this help menu")]),
+        ("exit", [(None, "!! Exit the game")])
     ]
 
-    # gets all the lengths of the commands and finds the longest one to make the spacing dynamic
-    max_length = max(len(command[0]) for command in commands) + 2
-    print("\nAvailable commands:")
-    for command, description in commands:
-        print(f"  {command:<{max_length}} - {description}")
-    print("\n")
+    # Descriptions for command per line is max. n Characters long
+    # ╭─────────┬───────────────────────┬────────────────────────────────────────────────────────────────╮
+    # │ Command │ Arguments             │ Description                                                    │
+    # ├─────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+    # │ last    │ None                  │ Execute the last command again (not 'last', 'inventory',       │
+    # │         │                       │ 'help' or 'exit')                                              │
+    # ├─────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+    # │ mine    │ <material> <amount>?1 │ Mine a material of additional count (e.g. '... coal 5')        │ # '?' = optional with default value of '1'
+    # ├─────────┼───────────────────────┼────────────────────────────────────────────────────────────────┤
+    # │ recipe  │ search <term>         │ Search for a recipe name.                                      │
+    # │         ├───────────────────────┼────────────────────────────────────────────────────────────────┤
+    # │         │ get|show <name>       │ Get a recipe by name.                                          │
+    # ╰─────────┴───────────────────────┴────────────────────────────────────────────────────────────────╯ # '|' = or
+
+    # None-Type will be converted to "None" in the output
+    # Prepare commands: flatten arguments, but only print each command once
+    commands = [(cmd[0], [(arg[0] if arg[0] else "None", arg[1]) for arg in cmd[1]]) for cmd in commands]
+
+    max_command_length = max(len(cmd[0]) for cmd in commands)
+    max_arg_length = max(len(arg[0]) for cmd in commands for arg in cmd[1])
+    max_desc_length = 50  # Max length for description
+
+    print(log("'?' means optional value with default value e.g. 4", LogLevel.TIP))
+    print(log("'|' means or / option", LogLevel.TIP))
+
+    print("\n╭" + "─" * (max_command_length + 2) + "┬" + "─" * (max_arg_length + 2) + "┬" + "─" * (max_desc_length + 2) + "╮")
+    print(f"│ {'Command':<{max_command_length}} │ {'Arguments':<{max_arg_length}} │ {'Description':<{max_desc_length}} │")
+    print("├" + "─" * (max_command_length + 2) + "┼" + "─" * (max_arg_length + 2) + "┼" + "─" * (max_desc_length + 2) + "┤")
+
+    for cmd in commands:
+        command_name = cmd[0]
+        args = cmd[1]
+        for i, arg in enumerate(args):
+            arg_text = arg[0]
+            desc_text = arg[1]
+            wrapped_desc = wordWrap(desc_text, max_desc_length)
+            for j, line in enumerate(wrapped_desc):
+                # Only print command name for the first argument/description
+                if i == 0 and j == 0:
+                    print(f"│ {command_name:<{max_command_length}} │ {arg_text:<{max_arg_length}} │ {line:<{max_desc_length}} │")
+                elif j == 0:
+                    print(f"│ {'':<{max_command_length}} │ {arg_text:<{max_arg_length}} │ {line:<{max_desc_length}} │")
+                else:
+                    print(f"│ {'':<{max_command_length}} │ {'':<{max_arg_length}} │ {line:<{max_desc_length}} │")
+            # After first argument, don't print command name again
+            if i < len(args) - 1:
+                print(f"│ {'':<{max_command_length}} ├{'─' * (max_arg_length + 2)}┼{'─' * (max_desc_length + 2)}┤")
+            command_name = ""
+        # Print a separator line after each command's arguments/descriptions,
+        # but only if this is not the last command in the list
+        if cmd != commands[-1]:
+            print("├" + "─" * (max_command_length + 2) + "┼" + "─" * (max_arg_length + 2) + "┼" + "─" * (max_desc_length + 2) + "┤")
+    print("╰" + "─" * (max_command_length + 2) + "┴" + "─" * (max_arg_length + 2) + "┴" + "─" * (max_desc_length + 2) + "╯\n")
+
+#╭─────────┬─────────────────────────────────────────╮
+#│ Recipe  │ <name>                                  │
+#├─────────┼──────────────────────────────┬──────────┤
+#│ Inputs  │ <name>                       │ <amount> │ # 'Inputs' only shows the first input
+#│         │ <name>                       │ <amount> │
+#├─────────┼──────────────────────────────┼──────────┤
+#│ Outputs │ <name>                       │ <amount> │ # 'Outputs' only shows the first output
+#│         │ <name>                       │ <amount> │
+#╰─────────┴──────────────────────────────┴──────────╯
+
+def printRecipe(recipe: Recipe):
+    print("\n╭─────────┬───────────────────────────────────────────────╮")
+    print(f"│ {colorText("Recipe", '#A6C1EE')}  │ {recipe.ID:<45} │")
+    print("├─────────┼────────────────────────────────────┬──────────┤")
+    for item, qty in recipe.inputs:
+        if item == recipe.inputs[0][0]: # makes 'Inputs' in first column only show the first input
+            print(f"│ {colorText("Inputs", '#A6C1EE')}  │ {item.name:<34} │ {qty:>7}x │")
+        else:
+            print(f"│         │ {item.name:<34} │ {qty:>7}x │")
+    print("├─────────┼────────────────────────────────────┼──────────┤")
+    for item, qty in recipe.outputs:
+        if item == recipe.outputs[0][0]: # makes 'Outputs' in first column only show the first output
+            print(f"│ {colorText("Outputs", '#A6C1EE')} │ {item.name:<34} │ {qty:>7}x │")
+        else:
+            print(f"│         │ {item.name:<34} │ {qty:>7}x │")
+    print("╰─────────┴────────────────────────────────────┴──────────╯\n")
 
 # Gradients:
 # #FBC2EB -> #A6C1EE
@@ -306,8 +402,8 @@ def print_help():
 #  / //\\ (_| | |  \__ \\ | (_| | | | |/  \\
 # /____/\\__,_|_|  |___/_|\\__,_|_| |_/_/\\_\\
 
-ascii_art_logo = """
- 
+asciiArtLogo = """
+
 ███████╗░█████╗░██████╗░░██████╗██╗░█████╗░███╗░░██╗░██╗░░██╗
 ╚════██║██╔══██╗██╔══██╗██╔════╝██║██╔══██╗████╗░██║░╚██╗██╔╝
 ░░███╔═╝███████║██████╔╝╚█████╗░██║███████║██╔██╗██║░░╚███╔╝░
@@ -316,7 +412,7 @@ ascii_art_logo = """
 ╚══════╝╚═╝░░╚═╝╚═╝░░╚═╝╚═════╝░╚═╝╚═╝░░╚═╝╚═╝░░╚══╝░╚═╝░░╚═╝
 """
 
-ascii_art_planet = """
+asciiArtPlanet = """
                                         _.oo.,
                  _.u[[/;:,.         .odMMMMMM'
               .o888UU[[[/;:-.  .o@P^    MMM^
@@ -351,11 +447,11 @@ def interpolate_color_multi(colors: list[tuple[int, int, int]], factor: float) -
     end_color = colors[index + 1]
     return tuple(int(start + (end - start) * inner_factor) for start, end in zip(start_color, end_color))
 
-def gradient_text(text: str, hex_colors: tuple[str], direction: str = "lr") -> str:
-    if len(hex_colors) < 2:
+def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str:
+    if len(hexColors) < 2:
         raise ValueError("At least two colors are required.")
 
-    rgb_colors = [hex_to_rgb(h) for h in hex_colors]
+    rgb_colors = [hex_to_rgb(h) for h in hexColors]
     lines = text.splitlines()
 
     if direction in ("td", "bu"):
@@ -390,81 +486,121 @@ def gradient_text(text: str, hex_colors: tuple[str], direction: str = "lr") -> s
     else:
         raise ValueError("Direction must be one of: 'lr', 'rl', 'td', 'bu'")
 
-def color_text(text: str, hex_color: str) -> str:
+def colorText(text: str, hex_color: str) -> str:
     rgb = hex_to_rgb(hex_color)
     return f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{text}\033[0m"
 
 # Unreadable text
-def obfuscate_text(text: str) -> str:
+def obfuscateText(text: str) -> str:
     charset = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choice(charset) if c != ' ' else ' ' for c in text)
 
-# print(gradient_text("Zars\nhallo\nP14a", ("#FBC2EB", "#A6C1EE"), "bu")) # !testing
-# print(color_text("Zars\nhallo\nP14a", "#FBC2EB")) # !testing
+# print(gradientText("Zars\nhallo\nP14a", ("#FBC2EB", "#A6C1EE"), "bu")) # !testing
+# print(colorText("Zars\nhallo\nP14a", "#FBC2EB")) # !testing
 
 # -----------------------------
 # Main Game Loop
 # -----------------------------
 def main():
-    print(gradient_text(ascii_art_logo, ("#FBC2EB", "#A6C1EE"), "lr"))
+    print(gradientText(asciiArtLogo, ("#FBC2EB", "#A6C1EE"), "lr"))
     name = input("\nWhat's your name again? # ")
     player = Player(name)
     gustaf = Processor()
     anton = Upgrader()
     vincent = Bizman()
 
-    print(gradient_text(ascii_art_planet ,("#E4BDD4", "#4839A1"), "td"))
-    print(f"""\nWelcome on board of the {gradient_text("ZarsianX", ("#E4BDD4", "#4839A1"), "lr")}, pioneer {color_text(player.name, "#FBC2EB")}! We're approaching {gradient_text("Zars P14a", ("#FBC2EB", "#A6C1EE"), "lr")}.
+    print(gradientText(asciiArtPlanet ,("#E4BDD4", "#4839A1"), "td"))
+    print(f"""
+Welcome on board of the {gradientText("ZarsianX", ("#E4BDD4", "#4839A1"), "lr")}, pioneer {colorText(player.name, "#FBC2EB")}! We're approaching {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"), "lr")}.
 The air is thin, the ground is rough – but you are ready. As one of the first settlers on this remote planet, it is up to you to tap into its resources and continuously improve your equipment.
 
-Equipped with nothing more than a simple wooden pickaxe, you begin your adventure. Deep beneath the surface, coal, iron ore, and more await – ready to be discovered by you.
+Equipped with nothing more than a simple tool, you begin your adventure. Deep beneath the surface, coal, iron ore, and more await – ready to be discovered by you.
 
-Use the commands at your disposal to mine resources, have them processed by Gustaf, upgrade your pickaxe with Anton, or create mysterious antiquities with Vincent. If you have enough hard coal, you can even enter the dangerous iron mine.
+Initiating planetfall!
 
-Initiating planetfall! Deploying parachute... Skipping parachute... Skipping parachute...! Sk.. i.. {obfuscate_text("ipping parachute!")}...
+Deploying parachute... 
+Skipping parachute... Skipping parachute...! Sk.. i.. {obfuscateText("ipping parachute!")}...
+
 Planetfall achieved! Now it's your turn...
 
-Pioneer acceptable! Toolbox opened!
-          
-Type '{color_text("help", "#A7E06F")}' to see all available commands.
+Pioneer acceptable! 
+Toolbox opened!
 
-Good luck, {color_text(player.name, "#FBC2EB")}.
-- And remember: Humanity counts on you!\n""")
+Type '{colorText("help", "#A7E06F")}' to see all available commands.
+
+⌇ Good luck, {colorText(player.name, "#FBC2EB")}.
+⌇ - And remember: Humanity counts on you!
+""")
     while True:
-        command = input("What do you want to do, pioneer? # ").strip().lower()
-        if command in ["exit"]:
-            print(f"\nMemory encrypted!\nPlanet {gradient_text("Zars P14a", ("#FBC2EB", "#A6C1EE"))} is waiting for you to return.\n\nData(Player(\"{player.name}\")): [\n\t{obfuscate_text("ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi")}\n]\n")
+        command = input("What do you want to do, pioneer? ⌗ ").strip().lower()
+        if command not in ["last", "inventory", "recipe", "exit", "help"]:
+            lastCommand = command  # Save the last command for "last" functionality
+
+        if command == "last":
+            if lastCommand:
+                print(f"↶ Repeating last command: {lastCommand}")
+                command = lastCommand
+            else:
+                print(log("No last command to repeat.", LogLevel.WARNING))
+                continue
+
+        parts = command.split()
+
+        if command == "exit":
+            print(f"\nMemory encrypted!\nPlanet {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"))} is waiting for you to return.\n\nData(Player(\"{player.name}\")): [\n\t{obfuscateText("ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi")}\n]\n")
             break
-        elif command in ["help"]:
-            print_help()
+        elif command == "help":
+            printHelp()
         elif command.startswith("mine"):
-            parts = command.split()
             if len(parts) >= 2:
                 material = parts[1]
                 anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
                 player.mine(material, anzahl)
             else:
-                print("Pioneer! Provide a material, e.g. 'mine coal' or with a count 'mine coal 5'.")
+                print(log("Pioneer! Provide a material, e.g. 'mine coal' or with a count 'mine coal 5'.", LogLevel.WARNING))
         elif command == "inventory":
             print("Current inventory:", player.inventory)
         elif command == "status":
-            print(f"\nPlayer: {player.name}")
-            print(f"Pickaxe: {player.pickaxe}")
+            print(f"\nName: {player.name}")
+            print(f"Tool: {player.tool.name} (Level {player.tool.level})")
             print("Inventory:", player.inventory, "\n")
         elif command.startswith("process"):
-            parts = command.split()
             if len(parts) >= 2:
-                material = parts[1]
+                recipe = Recipe.get(parts[1])
                 anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
-                gustaf.process(player, material, anzahl)
+                gustaf.process(player, recipe, anzahl)
             else:
-                print("Pioneer! Provide a material, e.g. 'process iron'.")
-        elif command == "upgrade":
-            anton.upgrade_pickaxe(player)
-        elif command == "antiquity":
-            vincent.create_antiquity(player)
+                print(log("Pioneer! Provide a recipe name, e.g. 'process iron' or with a count 'process iron 5'.", LogLevel.WARNING))
+        #elif command == "upgrade":
+        #    anton.upgradeTool(player)
+        #elif command == "antiquity":
+        #    vincent.createAntiquity(player)
+        elif command.startswith("recipe"):
+            if len(parts) >= 3 and parts[1] == "search":
+                searchTerm = " ".join(parts[2:])
+                all_ids = list(Recipe.Registry.keys())
+                # Fuzzy search mit difflib
+                matches = difflib.get_close_matches(searchTerm, all_ids, n=10, cutoff=0.3)
+                if matches:
+                    maxLength = max(len(match) for match in matches)
+                    print("\n╭" + "─" * (maxLength + 4) + "╮")
+                    for rid in matches:
+                        print(f"│ ∷ {rid:<{maxLength}} │")
+                    print("╰" + "─" * (maxLength + 4) + "╯\n")
+                else:
+                    print()
+                    print(log("No recipes found matching your search.\n", LogLevel.WARNING))
+            elif len(parts) >= 3 and parts[1] in ["get", "show"]:
+                recipeName = parts[2]
+                recipe = Recipe.get(recipeName)
+                if recipe:
+                    printRecipe(recipe)
+                else:
+                    print(log(f"No recipe found with name '{recipeName}'.", LogLevel.WARNING))
+            else:
+                print(log("Usage: recipe search <name> or recipe get <name>", LogLevel.WARNING))
         else:
-            print("Pioneer! We don't know this one. Please type 'help' to see the available commands.")
+            print(log("Pioneer! We don't know this one. Please type 'help' to see the available commands.", LogLevel.ERROR))
 
 # Start the game
 main()
