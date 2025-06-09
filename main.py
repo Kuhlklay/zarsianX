@@ -236,7 +236,7 @@ class Upgrader:
     def __init__(self):
         self.name = "Anton der Aufwerter"
 
-    def upgrade_pickaxe(self, player: Player):
+    def upgrade(self, player: Player):
         if player.pickaxe.level == 0:
             if player.inventory.has_item("Hartkohle", 2):
                 player.inventory.remove_item("Hartkohle", 2)
@@ -251,11 +251,11 @@ class Bizman: # short for Businessman
     def __init__(self):
         self.name = "Bizman"
 
-    def create_antiquity(self, player: Player):
-        if player.inventory.has_item("Hartkohle", 1):
-            player.inventory.remove_item("hard_coal", 1)
+    def create(self, player: Player):
+        if player.inventory.hasItem("Hartkohle", 1):
+            player.inventory.removeItem("hard_coal", 1)
             antiquity = Antiquity()
-            if player.inventory.add_item(antiquity.name, 1):
+            if player.inventory.addItem(antiquity.name, 1):
                 print(f"Bizman forged a '{antiquity.name}'!")
             else:
                 print(colorText("There's no room in your backpack for this antiquity!", "#FF6961"))
@@ -264,9 +264,9 @@ class Bizman: # short for Businessman
 
 class Antiquity:
     def __init__(self):
-        self.name = self.generate_name()
+        self.name = self.generateName()
 
-    def generate_name(self):
+    def generateName(self):
         rarities = ["common", "uncommon", "rare", "epic", "legendary"]
         rarity = random.choice(rarities)
         return f"Antiquity ({rarity})"
@@ -329,41 +329,41 @@ def printHelp():
     # Prepare commands: flatten arguments, but only print each command once
     commands = [(cmd[0], [(arg[0] if arg[0] else "None", arg[1]) for arg in cmd[1]]) for cmd in commands]
 
-    max_command_length = max(len(cmd[0]) for cmd in commands)
-    max_arg_length = max(len(arg[0]) for cmd in commands for arg in cmd[1])
-    max_desc_length = 50  # Max length for description
+    maxCmdLength = max(len(cmd[0]) for cmd in commands)
+    maxArgLength = max(len(arg[0]) for cmd in commands for arg in cmd[1])
+    maxDescLength = 50  # Max length for description
 
     print(log("'?' means optional value with default value e.g. 4", LogLevel.TIP))
     print(log("'|' means or / option", LogLevel.TIP))
 
-    print("\n╭" + "─" * (max_command_length + 2) + "┬" + "─" * (max_arg_length + 2) + "┬" + "─" * (max_desc_length + 2) + "╮")
-    print(f"│ {'Command':<{max_command_length}} │ {'Arguments':<{max_arg_length}} │ {'Description':<{max_desc_length}} │")
-    print("├" + "─" * (max_command_length + 2) + "┼" + "─" * (max_arg_length + 2) + "┼" + "─" * (max_desc_length + 2) + "┤")
+    print("\n╭" + "─" * (maxCmdLength + 2) + "┬" + "─" * (maxArgLength + 2) + "┬" + "─" * (maxDescLength + 2) + "╮")
+    print(f"│ {'Command':<{maxCmdLength}} │ {'Arguments':<{maxArgLength}} │ {'Description':<{maxDescLength}} │")
+    print("├" + "─" * (maxCmdLength + 2) + "┼" + "─" * (maxArgLength + 2) + "┼" + "─" * (maxDescLength + 2) + "┤")
 
     for cmd in commands:
-        command_name = cmd[0]
+        cmdName = cmd[0]
         args = cmd[1]
         for i, arg in enumerate(args):
-            arg_text = arg[0]
-            desc_text = arg[1]
-            wrapped_desc = wordWrap(desc_text, max_desc_length)
-            for j, line in enumerate(wrapped_desc):
+            argText = arg[0]
+            descText = arg[1]
+            descWrapped = wordWrap(descText, maxDescLength)
+            for j, line in enumerate(descWrapped):
                 # Only print command name for the first argument/description
                 if i == 0 and j == 0:
-                    print(f"│ {command_name:<{max_command_length}} │ {arg_text:<{max_arg_length}} │ {line:<{max_desc_length}} │")
+                    print(f"│ {cmdName:<{maxCmdLength}} │ {argText:<{maxArgLength}} │ {line:<{maxDescLength}} │")
                 elif j == 0:
-                    print(f"│ {'':<{max_command_length}} │ {arg_text:<{max_arg_length}} │ {line:<{max_desc_length}} │")
+                    print(f"│ {'':<{maxCmdLength}} │ {argText:<{maxArgLength}} │ {line:<{maxDescLength}} │")
                 else:
-                    print(f"│ {'':<{max_command_length}} │ {'':<{max_arg_length}} │ {line:<{max_desc_length}} │")
+                    print(f"│ {'':<{maxCmdLength}} │ {'':<{maxArgLength}} │ {line:<{maxDescLength}} │")
             # After first argument, don't print command name again
             if i < len(args) - 1:
-                print(f"│ {'':<{max_command_length}} ├{'─' * (max_arg_length + 2)}┼{'─' * (max_desc_length + 2)}┤")
-            command_name = ""
+                print(f"│ {'':<{maxCmdLength}} ├{'─' * (maxArgLength + 2)}┼{'─' * (maxDescLength + 2)}┤")
+            cmdName = ""
         # Print a separator line after each command's arguments/descriptions,
         # but only if this is not the last command in the list
         if cmd != commands[-1]:
-            print("├" + "─" * (max_command_length + 2) + "┼" + "─" * (max_arg_length + 2) + "┼" + "─" * (max_desc_length + 2) + "┤")
-    print("╰" + "─" * (max_command_length + 2) + "┴" + "─" * (max_arg_length + 2) + "┴" + "─" * (max_desc_length + 2) + "╯\n")
+            print("├" + "─" * (maxCmdLength + 2) + "┼" + "─" * (maxArgLength + 2) + "┼" + "─" * (maxDescLength + 2) + "┤")
+    print("╰" + "─" * (maxCmdLength + 2) + "┴" + "─" * (maxArgLength + 2) + "┴" + "─" * (maxDescLength + 2) + "╯\n")
 
 #╭─────────┬─────────────────────────────────────────╮
 #│ Recipe  │ <name>                                  │
@@ -430,64 +430,64 @@ YMMMU@^
  ^^
 """
 
-def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
+def hexToRGB(hexColor: str) -> tuple[int, int, int]:
+    hexColor = hexColor.lstrip('#')
+    return tuple(int(hexColor[i:i + 2], 16) for i in (0, 2, 4))
 
-def interpolate_color_multi(colors: list[tuple[int, int, int]], factor: float) -> tuple[int, int, int]:
+def interpolateMultiColor(colors: list[tuple[int, int, int]], factor: float) -> tuple[int, int, int]:
     if factor <= 0: return colors[0]
     if factor >= 1: return colors[-1]
 
-    total_segments = len(colors) - 1
-    scaled = factor * total_segments
+    totalSegments = len(colors) - 1
+    scaled = factor * totalSegments
     index = int(scaled)
-    inner_factor = scaled - index
+    innerFac = scaled - index
 
-    start_color = colors[index]
-    end_color = colors[index + 1]
-    return tuple(int(start + (end - start) * inner_factor) for start, end in zip(start_color, end_color))
+    start = colors[index]
+    end = colors[index + 1]
+    return tuple(int(start + (end - start) * innerFac) for start, end in zip(start, end))
 
 def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str:
     if len(hexColors) < 2:
         raise ValueError("At least two colors are required.")
 
-    rgb_colors = [hex_to_rgb(h) for h in hexColors]
+    rgbColors = [hexToRGB(h) for h in hexColors]
     lines = text.splitlines()
 
     if direction in ("td", "bu"):
         reverse = direction == "bu"
-        lines_proc = lines[::-1] if reverse else lines
-        total = len(lines_proc) - 1 if len(lines_proc) > 1 else 1
-        result_lines = []
-        for i, line in enumerate(lines_proc):
+        linesProc = lines[::-1] if reverse else lines
+        total = len(linesProc) - 1 if len(linesProc) > 1 else 1
+        result = []
+        for i, line in enumerate(linesProc):
             factor = i / total
-            rgb = interpolate_color_multi(rgb_colors, factor)
-            result_lines.append(f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{line}\033[0m")
-        return "\n".join(result_lines[::-1] if reverse else result_lines)
+            rgb = interpolateMultiColor(rgbColors, factor)
+            result.append(f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{line}\033[0m")
+        return "\n".join(result[::-1] if reverse else result)
 
     elif direction in ("lr", "rl"):
         reverse = direction == "rl"
-        result_lines = []
+        result = []
         for line in lines:
             chars = list(line)
             if reverse:
                 chars = chars[::-1]
             total = len(chars) - 1 if len(chars) > 1 else 1
-            line_out = []
+            lineOut = []
             for i, char in enumerate(chars):
                 factor = i / total
-                rgb = interpolate_color_multi(rgb_colors, factor)
-                line_out.append(f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{char}")
+                rgb = interpolateMultiColor(rgbColors, factor)
+                lineOut.append(f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{char}")
             if reverse:
-                line_out = line_out[::-1]
-            result_lines.append("".join(line_out) + "\033[0m")
-        return "\n".join(result_lines)
+                lineOut = lineOut[::-1]
+            result.append("".join(lineOut) + "\033[0m")
+        return "\n".join(result)
     
     else:
         raise ValueError("Direction must be one of: 'lr', 'rl', 'td', 'bu'")
 
-def colorText(text: str, hex_color: str) -> str:
-    rgb = hex_to_rgb(hex_color)
+def colorText(text: str, hexColor: str) -> str:
+    rgb = hexToRGB(hexColor)
     return f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{text}\033[0m"
 
 # Unreadable text
@@ -505,7 +505,7 @@ def main():
     print(gradientText(asciiArtLogo, ("#FBC2EB", "#A6C1EE"), "lr"))
     name = input("\nWhat's your name again? # ")
     player = Player(name)
-    gustaf = Processor()
+    processor = Processor()
     anton = Upgrader()
     vincent = Bizman()
 
@@ -568,7 +568,7 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
             if len(parts) >= 2:
                 recipe = Recipe.get(parts[1])
                 anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
-                gustaf.process(player, recipe, anzahl)
+                processor.process(player, recipe, anzahl)
             else:
                 print(log("Pioneer! Provide a recipe name, e.g. 'process iron' or with a count 'process iron 5'.", LogLevel.WARNING))
         #elif command == "upgrade":
@@ -578,9 +578,9 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
         elif command.startswith("recipe"):
             if len(parts) >= 3 and parts[1] == "search":
                 searchTerm = " ".join(parts[2:])
-                all_ids = list(Recipe.Registry.keys())
+                allIDs = list(Recipe.Registry.keys())
                 # Fuzzy search mit difflib
-                matches = difflib.get_close_matches(searchTerm, all_ids, n=10, cutoff=0.3)
+                matches = difflib.get_close_matches(searchTerm, allIDs, n=10, cutoff=0.3)
                 if matches:
                     maxLength = max(len(match) for match in matches)
                     print("\n╭" + "─" * (maxLength + 4) + "╮")

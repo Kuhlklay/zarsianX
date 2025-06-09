@@ -181,6 +181,8 @@ class Recipe:
     def get(cls, ID):
         return cls.Registry.get(ID)
 
+#Item.register("<id>", "<name>")
+
 Item.register("cobbled_stone", "Cobbled Stone")
 
 Item.register("coal", "Coal")
@@ -202,10 +204,14 @@ Item.register("zarsium_ingot", "Zarsium Ingot")
 
 Item.register("steel_ingot", "Steel Ingot")
 
+#Tool.register("<id>", "<name>", <mining-lvl>, <time-divisor (2.0=200% fast)>)
+
 Tool.register("wood_pickaxe", "Wooden Pickaxe", 0, 0.5)
 Tool.register("iron_pickaxe", "Iron Pickaxe", 1, 1.0)
 
 Tool.register("test_tool", "Test Tool", 9999, 9999.0)
+
+#Block.register("<name>", Item.<id>, <mining-lvl>, <time-sec>, DropRates(<min>, <max>, <rate (1=100%)>))
 
 Block.register("coal", Item.COAL, 0, 2, DropRates(1, 3, 0.2))
 Block.register("iron", Item.RAW_IRON, 1, 3, DropRates(1, 2, 0.07))
@@ -215,6 +221,12 @@ Block.register("aluminium", Item.RAW_ALUMINIUM, 2, 3.5, DropRates(1, 2, 0.07))
 Block.register("veridium", Item.RAW_VERIDIUM, 3, 4, DropRates(1, 2, 0.07))
 Block.register("titanium", Item.RAW_TITANIUM, 4, 4.5, DropRates(1, 2, 0.07))
 Block.register("stone", Item.COBBLED_STONE, 0, 1.5, DropRates(1, 1, 1.0))
+
+#Recipe.register(
+#   "<name>",
+#   [...(Item.<id>, <amount>)],
+#   [...(Item.<id>, <amount>)],
+#)
 
 Recipe.register(
     "iron_ingot",
