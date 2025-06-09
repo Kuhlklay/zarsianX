@@ -3,13 +3,13 @@ import time
 import random
 import string
 from enum import Enum
-from registry import *
+from registry import Item, Tool, Block, Recipe
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
     WARNING = {"color": "#FFB561", "symbol": "⊜"}
     TIP = {"color": "#6A7EAC", "symbol": "⊙"}
-    
+
 def log(message: str, level: LogLevel) -> str:
     color = level.value["color"]
     symbol = level.value["symbol"]
@@ -104,7 +104,7 @@ class Player:
     def __init__(self, name):
         self.name = name
         self.inventory = Inventory(owner=self)
-        self.pickaxe = Tool.get("test_tool")  # Start with a test tool
+        self.tool = Tool.get("test_tool")  # Start with a test tool
         self.money = 0  # Währung の (Rwo)
 
     def mine(self, material: str, amount: int = 1):
@@ -115,8 +115,8 @@ class Player:
             return
 
         # Check ob Pickaxe-Level ausreicht
-        if self.pickaxe.miningLevel < block.miningLevel:
-            print(log(f"Your pickaxe is too weak to mine {block.name}.", LogLevel.WARNING))
+        if self.tool.miningLevel < block.miningLevel:
+            print(log(f"Your tool is too weak to mine {block.name}.", LogLevel.WARNING))
             return
 
         # Verfügbare Inventar-Kapazität prüfen
@@ -131,10 +131,10 @@ class Player:
             print(log("No space in inventory!", LogLevel.WARNING))
             return
 
-        print(f"\n{colorText(self.name, '#6A7EAC')} is using a {self.pickaxe.name} trying to mine {amount}x {block.name}...")
+        print(f"\n{colorText(self.name, '#6A7EAC')} is using a {self.tool.name} trying to mine {amount}x {block.name}...")
 
         # Mining-Zeit basierend auf Material und Menge
-        totalTime = block.miningTime * amount / self.pickaxe.timeFac
+        totalTime = block.miningTime * amount / self.tool.timeFac
         time.sleep(totalTime)
 
         total = 0
@@ -184,7 +184,7 @@ class Processor:
         if not recipe:
             print(log(f"No recipe found for {recipe}.", LogLevel.WARNING))
             return
-        
+
         # Prüfe, wie oft das Rezept maximal ausgeführt werden kann
         possible = float('inf')
         for inp in recipe.inputs:
@@ -194,11 +194,11 @@ class Processor:
                 print(log(f"Not enough {inp[0]} for processing.", LogLevel.WARNING))
                 return
             possible = min(possible, available // inp[1])
-        
+
         if possible == 0:
             print(log("Not enough materials for processing.", LogLevel.WARNING))
             return
-        
+
         # Handle amount: default to 1 if None, reject if < 1, cap if > possible
         if amount is None:
             amount = 1
@@ -208,20 +208,20 @@ class Processor:
         if amount > possible:
             print(log(f"Cannot process {amount}x {recipe.ID}. Only {possible} possible due to limited materials.", LogLevel.WARNING))
             return
-        
+
         # Entferne Input-Materialien
         for inp in recipe.inputs:
             if not player.inventory.removeItem(inp[0], inp[1] * amount):
                 print(log(f"Not enough {inp[0]} for processing.", LogLevel.WARNING))
                 return
-        
+
         # Füge Output-Materialien hinzu
         success = True
         for out in recipe.outputs:
             if not player.inventory.addItem(out[0], out[1] * amount):
                 success = False
                 break
-        
+
         if success:
             print(f"Gustavu has processed {amount}x {recipe.ID} successfully!")
         else:
@@ -273,7 +273,7 @@ class Antiquity:
 
     def __str__(self):
         return self.name
-    
+
 # -----------------------------
 # Helper functions
 
@@ -394,7 +394,7 @@ def printRecipe(recipe: Recipe):
 
 # Gradients:
 # #FBC2EB -> #A6C1EE
-# #5EA4FF -> #A7E06F 
+# #5EA4FF -> #A7E06F
 
 #   _____               _            __  __
 # / _  / __ _ _ __ ___(_) __ _ _ __ \\ \\/ /
@@ -482,7 +482,7 @@ def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str
                 lineOut = lineOut[::-1]
             result.append("".join(lineOut) + "\033[0m")
         return "\n".join(result)
-    
+
     else:
         raise ValueError("Direction must be one of: 'lr', 'rl', 'td', 'bu'")
 
@@ -506,10 +506,10 @@ def main():
     name = input("\nWhat's your name again? # ")
     player = Player(name)
     processor = Processor()
-    anton = Upgrader()
-    vincent = Bizman()
+    #anton = Upgrader()
+    #vincent = Bizman()
 
-    print(gradientText(asciiArtPlanet ,("#E4BDD4", "#4839A1"), "td"))
+    print(gradientText(asciiArtPlanet, ("#E4BDD4", "#4839A1"), "td"))
     print(f"""
 Welcome on board of the {gradientText("ZarsianX", ("#E4BDD4", "#4839A1"), "lr")}, pioneer {colorText(player.name, "#FBC2EB")}! We're approaching {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"), "lr")}.
 The air is thin, the ground is rough – but you are ready. As one of the first settlers on this remote planet, it is up to you to tap into its resources and continuously improve your equipment.
@@ -518,12 +518,12 @@ Equipped with nothing more than a simple tool, you begin your adventure. Deep be
 
 Initiating planetfall!
 
-Deploying parachute... 
+Deploying parachute...
 Skipping parachute... Skipping parachute...! Sk.. i.. {obfuscateText("ipping parachute!")}...
 
 Planetfall achieved! Now it's your turn...
 
-Pioneer acceptable! 
+Pioneer acceptable!
 Toolbox opened!
 
 Type '{colorText("help", "#A7E06F")}' to see all available commands.
