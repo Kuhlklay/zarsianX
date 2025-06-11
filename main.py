@@ -3,7 +3,7 @@ import time
 import random
 import string
 from enum import Enum
-from registry import Item, Tool, Block, Recipe
+from registry import Item, Tool, Block, Recipe, DropRateEnum, DropRates
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
