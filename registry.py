@@ -145,12 +145,16 @@ class Block:
                 return block
         return None
 
+    @classmethod
+    def exists(cls, ID: str) -> bool:
+        return ID in cls.Registry
+
 RecipeType = namedtuple("RecipeType", ["id", "inputs", "outputs"])
 
 class Recipe:
     Registry = {}
 
-    def __init__(self, ID: str, inputs, outputs): # inputs and outputs are lists of tuples (Item, quantity) or just one tuple
+    def __init__(self, ID: str, inputs: list[tuple[Item, int]], outputs: list[tuple[Item, int]]): # inputs and outputs are lists of tuples (Item, quantity) or just one tuple
         self.ID = ID
         self.inputs = inputs
         self.outputs = outputs
@@ -169,10 +173,10 @@ class Recipe:
             raise TypeError(f"All outputs for recipe '{ID}' must be (Item, quantity) tuples.")
         
     def __repr__(self):
-        return f"<Block {self.ID} takes {self.inputs} to make {self.outputs}>"
+        return f"<Block {self.name} ({self.ID}) takes {self.inputs} to make {self.outputs}>"
 
     @classmethod
-    def register(cls, ID, inputs, outputs):
+    def register(cls, ID: str, inputs: list[tuple[Item, int]], outputs: list[tuple[Item, int]]):
         recipe = cls(ID, inputs, outputs)
         cls.Registry[ID] = recipe
         setattr(cls, ID.upper(), recipe)

@@ -110,8 +110,8 @@ class Player:
     def mine(self, material: str, amount: int = 1):
         block = Block.get(material.lower())
 
-        if not block:
-            print(log(f"Can not mine {block.name} because it does not exist.", LogLevel.WARNING))
+        if not block or not Block.exists(material):
+            print(log(f"Can not mine '{material}' because it does not exist.", LogLevel.WARNING))
             return
 
         # Check ob Pickaxe-Level ausreicht
@@ -237,7 +237,7 @@ class Upgrader:
         self.name = "Anton der Aufwerter"
 
     def upgrade(self, player: Player):
-        if player.pickaxe.level == 0:
+        if player.pickaxe.mingLevel == 0:
             if player.inventory.has_item("Hartkohle", 2):
                 player.inventory.remove_item("Hartkohle", 2)
                 player.pickaxe.upgrade()
@@ -293,24 +293,24 @@ def wordWrap(text: str, n: int = 50) -> list[str]:
         lines.append(current)
     return lines
 
-def printHelp():
-    #dynamic way to print all the commands with accurate spacing to the longest command
-    commands = [
-        ("last", [(None, "Execute the last command again (excl. 'last', 'inventory', 'recipe', 'help' & 'exit')")]),
-        ("mine", [("<material> <amount>?1", "Mine a material of additional count (e.g. '... coal 5')")]),
-        ("inventory", [(None, "Show your current inventory")]),
-        ("status", [(None, "Show your status (name, tool, inventory)")]),
-        ("process", [("<recipe> <amount>?1", "Process material according to the recipe (e.g. '... iron_ingot 2')")]),
-        ("recipe", [
-            ("search <term>", "Search for a recipe name"),
-            ("get|show <name>", "Get a recipe by name")
-        ]),
-        #("upgrade", "Let Upgrader upgrade your pickaxe (wood) to stone with 2 hard coal."),
-        #("antiquity", "Let Bizman create an antiquity."),
-        ("help", [(None, "Show this help menu")]),
-        ("exit", [(None, "!! Exit the game")])
-    ]
+#dynamic way to print all the commands with accurate spacing to the longest command
+commands = [
+    ("last", [(None, "Execute the last command again (excl. 'last', 'inventory', 'recipe', 'help' & 'exit')")]),
+    ("mine", [("<material> <amount>?1", "Mine a material of additional count (e.g. '... coal 5')")]),
+    ("inventory", [(None, "Show your current inventory")]),
+    ("status", [(None, "Show your status (name, tool, inventory)")]),
+    ("process", [("<recipe> <amount>?1", "Process material according to the recipe (e.g. '... iron_ingot 2')")]),
+    ("recipe", [
+        ("search <term>", "Search for a recipe name"),
+        ("get|show <name>", "Get a recipe by name")
+    ]),
+    #("upgrade", "Let Upgrader upgrade your pickaxe (wood) to stone with 2 hard coal."),
+    #("antiquity", "Let Bizman create an antiquity."),
+    ("help", [(None, "Show this help menu")]),
+    ("exit", [(None, "!! Exit the game")])
+]
 
+def printHelp():
     # Descriptions for command per line is max. n Characters long
     # ╭─────────┬───────────────────────┬────────────────────────────────────────────────────────────────╮
     # │ Command │ Arguments             │ Description                                                    │
@@ -531,15 +531,27 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
 ⌇ Good luck, {colorText(player.name, "#FBC2EB")}.
 ⌇ - And remember: Humanity counts on you!
 """)
+    excludedLastCommands = {"last", "inventory", "recipe", "help", "exit"}
+    validCommandNames = {cmd[0] for cmd in commands}.difference(excludedLastCommands)
+
+    lastCommand = ""
     while True:
         command = input("What do you want to do, pioneer? ⌗ ").strip().lower()
-        if command not in ["last", "inventory", "recipe", "exit", "help"]:
-            lastCommand = command  # Save the last command for "last" functionality
 
+        # Save last command only if it's not excluded
+        if command.split()[0] not in excludedLastCommands:
+            lastCommand = command
+
+        # Handle 'last' command safely
         if command == "last":
             if lastCommand:
-                print(f"↶ Repeating last command: {lastCommand}")
-                command = lastCommand
+                first_word = lastCommand.split()[0]
+                if first_word in validCommandNames:
+                    print(f"↶ Repeating last command: {lastCommand}")
+                    command = lastCommand
+                else:
+                    print(log("Last command cannot be repeated.", LogLevel.WARNING))
+                    continue
             else:
                 print(log("No last command to repeat.", LogLevel.WARNING))
                 continue
@@ -562,7 +574,7 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
             print("Current inventory:", player.inventory)
         elif command == "status":
             print(f"\nName: {player.name}")
-            print(f"Tool: {player.tool.name} (Level {player.tool.level})")
+            print(f"Tool: {player.tool.name} (Level {player.tool.miningLevel})")
             print("Inventory:", player.inventory, "\n")
         elif command.startswith("process"):
             if len(parts) >= 2:

@@ -10,9 +10,9 @@ class LocID:
 MachineStatus = Enum('MachineStatus', "ACTIVE PAUSED STOPPED")
 
 class Machine:
-    def __init__(self, machine_type: str, recipe: Recipe, loc: LocID):
+    def __init__(self, machineType: str, recipe: Recipe, loc: LocID):
         self.uuid = str(uuid.uuid4())
-        self.type = machine_type
+        self.type = machineType
         self.recipe = recipe
         self.loc = loc
         self.status = MachineStatus.ACTIVE
@@ -24,9 +24,9 @@ class Machine:
         if self.status != MachineStatus.ACTIVE:
             return
         # Check if inputs are available and process the recipe
-        if self.can_process():
-            self.pull_inputs()
-            self.produce_output()
+        if self.canProcess():
+            self.pull()
+            self.produce()
 
     def canProcess(self) -> bool:
         # Check if all required inputs are available
