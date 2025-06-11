@@ -344,7 +344,7 @@ def printHelp():
         cmdName = cmd[0]
         args = cmd[1]
         for i, arg in enumerate(args):
-            argText = arg[0]
+            argText = arg[0] or "None"
             descText = arg[1]
             descWrapped = wordWrap(descText, maxDescLength)
             for j, line in enumerate(descWrapped):
@@ -493,7 +493,6 @@ def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str
 
     else:
         raise ValueError("Direction must be one of: 'lr', 'rl', 'td', 'bu'")
-
 
 def colorText(text: str, hexColor: str) -> str:
     rgb = hexToRGB(hexColor)
