@@ -2,6 +2,9 @@ import difflib
 import time
 import random
 import string
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.completion import WordCompleter
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
 
@@ -543,84 +546,95 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
     validCommandNames = {cmd[0] for cmd in commands}.difference(excludedLastCommands)
 
     lastCommand = ""
+
+    command_completer = WordCompleter([cmd[0] for cmd in commands], ignore_case=True)
+
+    history = InMemoryHistory()
+    session = PromptSession(history=history, completer=command_completer)
+
     while True:
-        command = input("What do you want to do, pioneer? ⌗ ").strip().lower()
+        try:
+            command = session.prompt("What do you want to do, pioneer? ⌗ ").strip().lower()
+        
+            # Save last command only if it's not excluded
+            if command.split()[0] not in excludedLastCommands:
+                lastCommand = command
 
-        # Save last command only if it's not excluded
-        if command.split()[0] not in excludedLastCommands:
-            lastCommand = command
-
-        # Handle 'last' command safely
-        if command == "last":
-            if lastCommand:
-                first_word = lastCommand.split()[0]
-                if first_word in validCommandNames:
-                    print(f"↶ Repeating last command: {lastCommand}")
-                    command = lastCommand
+            # Handle 'last' command safely
+            if command == "last":
+                if lastCommand:
+                    first_word = lastCommand.split()[0]
+                    if first_word in validCommandNames:
+                        print(f"↶ Repeating last command: {lastCommand}")
+                        command = lastCommand
+                    else:
+                        print(log("Last command cannot be repeated.", LogLevel.WARNING))
+                        continue
                 else:
-                    print(log("Last command cannot be repeated.", LogLevel.WARNING))
+                    print(log("No last command to repeat.", LogLevel.WARNING))
                     continue
+
+            parts = command.split()
+
+            if command == "exit":
+                print(f"\nMemory encrypted!\nPlanet {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"))} is waiting for you to return.\n\nData(Player(\"{player.name}\")): [\n\t{obfuscateText("ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi")}\n]\n")
+                break
+            elif command == "help":
+                printHelp()
+            elif command.startswith("mine"):
+                if len(parts) >= 2:
+                    material = parts[1]
+                    anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+                    player.mine(material, anzahl)
+                else:
+                    print(log("Pioneer! Provide a material, e.g. 'mine coal' or with a count 'mine coal 5'.", LogLevel.WARNING))
+            elif command == "inventory":
+                print("Current inventory:", player.inventory)
+            elif command == "status":
+                print(f"\nName: {player.name}")
+                print(f"Tool: {player.tool.name} (Level {player.tool.miningLevel})")
+                print("Inventory:", player.inventory, "\n")
+            elif command.startswith("process"):
+                if len(parts) >= 2:
+                    recipe = Recipe.get(parts[1])
+                    anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
+                    processor.process(player, recipe, anzahl)
+                else:
+                    print(log("Pioneer! Provide a recipe name, e.g. 'process iron' or with a count 'process iron 5'.", LogLevel.WARNING))
+            #elif command == "upgrade":
+            #    anton.upgradeTool(player)
+            #elif command == "antiquity":
+            #    vincent.createAntiquity(player)
+            elif command.startswith("recipe"):
+                if len(parts) >= 3 and parts[1] == "search":
+                    searchTerm = " ".join(parts[2:])
+                    allIDs = list(Recipe.Registry.keys())
+                    # Fuzzy search mit difflib
+                    matches = difflib.get_close_matches(searchTerm, allIDs, n=10, cutoff=0.3)
+                    if matches:
+                        maxLength = max(len(match) for match in matches)
+                        print("\n╭" + "─" * (maxLength + 4) + "╮")
+                        for rid in matches:
+                            print(f"│ ∷ {rid:<{maxLength}} │")
+                        print("╰" + "─" * (maxLength + 4) + "╯\n")
+                    else:
+                        print()
+                        print(log("No recipes found matching your search.\n", LogLevel.WARNING))
+                elif len(parts) >= 3 and parts[1] in ["get", "show"]:
+                    recipeName = parts[2]
+                    recipe = Recipe.get(recipeName)
+                    if recipe:
+                        printRecipe(recipe)
+                    else:
+                        print(log(f"No recipe found with name '{recipeName}'.", LogLevel.WARNING))
+                else:
+                    print(log("Usage: recipe search <name> or recipe get <name>", LogLevel.WARNING))
             else:
-                print(log("No last command to repeat.", LogLevel.WARNING))
-                continue
+                print(log("Pioneer! We don't know this one. Please type 'help' to see the available commands.", LogLevel.ERROR))
 
-        parts = command.split()
-
-        if command == "exit":
-            print(f"\nMemory encrypted!\nPlanet {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"))} is waiting for you to return.\n\nData(Player(\"{player.name}\")): [\n\t{obfuscateText("ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi")}\n]\n")
+        except KeyboardInterrupt:
+            print("\nCancel")
             break
-        elif command == "help":
-            printHelp()
-        elif command.startswith("mine"):
-            if len(parts) >= 2:
-                material = parts[1]
-                anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
-                player.mine(material, anzahl)
-            else:
-                print(log("Pioneer! Provide a material, e.g. 'mine coal' or with a count 'mine coal 5'.", LogLevel.WARNING))
-        elif command == "inventory":
-            print("Current inventory:", player.inventory)
-        elif command == "status":
-            print(f"\nName: {player.name}")
-            print(f"Tool: {player.tool.name} (Level {player.tool.miningLevel})")
-            print("Inventory:", player.inventory, "\n")
-        elif command.startswith("process"):
-            if len(parts) >= 2:
-                recipe = Recipe.get(parts[1])
-                anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
-                processor.process(player, recipe, anzahl)
-            else:
-                print(log("Pioneer! Provide a recipe name, e.g. 'process iron' or with a count 'process iron 5'.", LogLevel.WARNING))
-        #elif command == "upgrade":
-        #    anton.upgradeTool(player)
-        #elif command == "antiquity":
-        #    vincent.createAntiquity(player)
-        elif command.startswith("recipe"):
-            if len(parts) >= 3 and parts[1] == "search":
-                searchTerm = " ".join(parts[2:])
-                allIDs = list(Recipe.Registry.keys())
-                # Fuzzy search mit difflib
-                matches = difflib.get_close_matches(searchTerm, allIDs, n=10, cutoff=0.3)
-                if matches:
-                    maxLength = max(len(match) for match in matches)
-                    print("\n╭" + "─" * (maxLength + 4) + "╮")
-                    for rid in matches:
-                        print(f"│ ∷ {rid:<{maxLength}} │")
-                    print("╰" + "─" * (maxLength + 4) + "╯\n")
-                else:
-                    print()
-                    print(log("No recipes found matching your search.\n", LogLevel.WARNING))
-            elif len(parts) >= 3 and parts[1] in ["get", "show"]:
-                recipeName = parts[2]
-                recipe = Recipe.get(recipeName)
-                if recipe:
-                    printRecipe(recipe)
-                else:
-                    print(log(f"No recipe found with name '{recipeName}'.", LogLevel.WARNING))
-            else:
-                print(log("Usage: recipe search <name> or recipe get <name>", LogLevel.WARNING))
-        else:
-            print(log("Pioneer! We don't know this one. Please type 'help' to see the available commands.", LogLevel.ERROR))
 
 # Start the game
 main()
