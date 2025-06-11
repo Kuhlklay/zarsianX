@@ -3,7 +3,7 @@ import time
 import random
 import string
 from enum import Enum
-from registry import Item, Tool, Block, Recipe, DropRateEnum, DropRates
+from registry import Item, Tool, Block, Recipe, DropRateEnum
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
@@ -327,10 +327,10 @@ def printHelp():
 
     # None-Type will be converted to "None" in the output
     # Prepare commands: flatten arguments, but only print each command once
-    commands = [(cmd[0], [(arg[0] if arg[0] else "None", arg[1]) for arg in cmd[1]]) for cmd in commands]
+    cmds = [(cmd[0], [(arg[0] if arg[0] else "None", arg[1]) for arg in cmd[1]]) for cmd in commands]
 
-    maxCmdLength = max(len(cmd[0]) for cmd in commands)
-    maxArgLength = max(len(arg[0]) for cmd in commands for arg in cmd[1])
+    maxCmdLength = max(len(cmd[0]) for cmd in cmds)
+    maxArgLength = max(len(arg[0]) for cmd in cmds for arg in cmd[1])
     maxDescLength = 50  # Max length for description
 
     print(log("'?' means optional value with default value e.g. 4", LogLevel.TIP))
@@ -435,17 +435,23 @@ def hexToRGB(hexColor: str) -> tuple[int, int, int]:
     return tuple(int(hexColor[i:i + 2], 16) for i in (0, 2, 4))
 
 def interpolateMultiColor(colors: list[tuple[int, int, int]], factor: float) -> tuple[int, int, int]:
-    if factor <= 0: return colors[0]
-    if factor >= 1: return colors[-1]
+    if factor <= 0:
+        return colors[0]
+    if factor >= 1: 
+        return colors[-1]
 
     totalSegments = len(colors) - 1
     scaled = factor * totalSegments
     index = int(scaled)
     innerFac = scaled - index
 
-    start = colors[index]
-    end = colors[index + 1]
-    return tuple(int(start + (end - start) * innerFac) for start, end in zip(start, end))
+    color_start = colors[index]
+    color_end = colors[index + 1]
+
+    return tuple(
+        int(cs + (ce - cs) * innerFac)
+        for cs, ce in zip(color_start, color_end)
+    )
 
 def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str:
     if len(hexColors) < 2:
@@ -454,37 +460,40 @@ def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str
     rgbColors = [hexToRGB(h) for h in hexColors]
     lines = text.splitlines()
 
+    def applyGradient(items: list[str], reverse: bool = False) -> list[str]:
+        if reverse:
+            items = items[::-1]
+        total = len(items) - 1 if len(items) > 1 else 1
+        result = []
+        for i, item in enumerate(items):
+            factor = i / total
+            rgb = interpolateMultiColor(rgbColors, factor)
+            result.append(f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{item}")
+        if reverse:
+            result = result[::-1]
+        return result
+
     if direction in ("td", "bu"):
         reverse = direction == "bu"
         linesProc = lines[::-1] if reverse else lines
-        total = len(linesProc) - 1 if len(linesProc) > 1 else 1
-        result = []
-        for i, line in enumerate(linesProc):
-            factor = i / total
-            rgb = interpolateMultiColor(rgbColors, factor)
-            result.append(f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{line}\033[0m")
-        return "\n".join(result[::-1] if reverse else result)
+        coloredLines = applyGradient(linesProc, reverse=False)
+        if reverse:
+            coloredLines = coloredLines[::-1]
+        # Jede Zeile am Ende resetten
+        return "\n".join(line + "\033[0m" for line in coloredLines)
 
     elif direction in ("lr", "rl"):
         reverse = direction == "rl"
         result = []
         for line in lines:
             chars = list(line)
-            if reverse:
-                chars = chars[::-1]
-            total = len(chars) - 1 if len(chars) > 1 else 1
-            lineOut = []
-            for i, char in enumerate(chars):
-                factor = i / total
-                rgb = interpolateMultiColor(rgbColors, factor)
-                lineOut.append(f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{char}")
-            if reverse:
-                lineOut = lineOut[::-1]
-            result.append("".join(lineOut) + "\033[0m")
+            coloredChars = applyGradient(chars, reverse)
+            result.append("".join(coloredChars) + "\033[0m")
         return "\n".join(result)
 
     else:
         raise ValueError("Direction must be one of: 'lr', 'rl', 'td', 'bu'")
+
 
 def colorText(text: str, hexColor: str) -> str:
     rgb = hexToRGB(hexColor)

@@ -1,6 +1,6 @@
 import uuid
 from enum import Enum
-from typing import List, Optional, Dict
+from typing import List, Dict
 from registry import Item, Recipe
 
 class LocID:
@@ -75,7 +75,7 @@ class Connection:
 # Miners are special, they take a ressource instead of a recipe
 class Miner(Machine):
     def __init__(self, recipe: Recipe, loc: LocID):
-        super().__init__("miner", recipe, loc_id)
+        super().__init__("miner", recipe, loc)
         self.inputs = []  # Miners have 0 inputs
         self.outputs = [None]  # 1 output slot
 
