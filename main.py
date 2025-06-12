@@ -379,7 +379,7 @@ def printHelp():
 
 def printRecipe(recipe: Recipe):
     print("\n╭─────────┬───────────────────────────────────────────────╮")
-    print(f"│ {colorText("Recipe", '#A6C1EE')}  │ {recipe.ID:<45} │")
+    print(f"│ {colorText('Recipe', '#A6C1EE')}  │ {recipe.ID:<45} │")
     print("├─────────┼────────────────────────────────────┬──────────┤")
     for item, qty in recipe.inputs:
         if item == recipe.inputs[0][0]: # makes 'Inputs' in first column only show the first input
