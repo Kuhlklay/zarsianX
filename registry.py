@@ -149,8 +149,6 @@ class Block:
     def exists(cls, ID: str) -> bool:
         return ID in cls.Registry
 
-RecipeType = namedtuple("RecipeType", ["id", "inputs", "outputs"])
-
 class Recipe:
     Registry = {}
 
@@ -184,6 +182,10 @@ class Recipe:
     @classmethod
     def get(cls, ID):
         return cls.Registry.get(ID)
+    
+    @classmethod
+    def all(cls):
+        return list(cls.Registry.values())
 
 #Item.register("<id>", "<name>")
 

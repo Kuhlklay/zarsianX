@@ -4,7 +4,7 @@ import random
 import string
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import WordCompleter, NestedCompleter
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
 
@@ -508,6 +508,25 @@ def obfuscateText(text: str) -> str:
 # print(gradientText("Zars\nhallo\nP14a", ("#FBC2EB", "#A6C1EE"), "bu")) # !testing
 # print(colorText("Zars\nhallo\nP14a", "#FBC2EB")) # !testing
 
+all_resources = ['coal', 'copper', 'iron', 'gold']
+unlocked_resources = ['coal', 'copper']  # Am Anfang nur "coal" verfügbar
+
+def get_unlocked_commands():
+    return {
+        # takes all ressources available
+        'mine': { block.ID: None for block in Block.all() },
+        'inventory': None,
+        'recipe': {
+            'search': None,
+            'get': None,
+            'show': None
+        },
+        'status': None,
+        'process': { recipe.ID: None for recipe in Recipe.all() },
+        'help': None,
+        'exit': None,
+    }
+
 # -----------------------------
 # Main Game Loop
 # -----------------------------
@@ -541,8 +560,11 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
 ⌇ Good luck, {colorText(player.name, "#FBC2EB")}.
 ⌇ - And remember: Humanity counts on you!
 """)
+    def handleExit():
+        print(f"\nMemory encrypted!\nPlanet {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'))} is waiting for you to return.\n\nData(Player(\"{player.name}\")): [\n\t{obfuscateText('ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi')}\n]\n")
 
-    command_completer = WordCompleter([cmd[0] for cmd in commands], ignore_case=True)
+    command_completer = NestedCompleter.from_nested_dict(get_unlocked_commands())
+    #command_completer = WordCompleter([cmd[0] for cmd in commands], ignore_case=True)
 
     history = InMemoryHistory()
     session = PromptSession(history=history, completer=command_completer)
@@ -554,7 +576,7 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
             parts = command.split()
 
             if command == "exit":
-                print(f"\nMemory encrypted!\nPlanet {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"))} is waiting for you to return.\n\nData(Player(\"{player.name}\")): [\n\t{obfuscateText("ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi")}\n]\n")
+                handleExit()
                 break
             elif command == "help":
                 printHelp()
@@ -610,7 +632,7 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
                 print(log("Pioneer! We don't know this one. Please type 'help' to see the available commands.", LogLevel.ERROR))
 
         except KeyboardInterrupt:
-            print("\nCancel")
+            handleExit()
             break
 
 # Start the game
