@@ -589,7 +589,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
 
     while True:
         try:
-            command = session.prompt("What do you want to do, pioneer? ⌗ ").strip().lower()
+            command = session.prompt("What do you want to do, pioneer? # ").strip().lower()
 
             parts = command.split()
 
