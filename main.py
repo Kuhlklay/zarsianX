@@ -2,11 +2,23 @@ import difflib
 import time
 import random
 import string
-from prompt_toolkit import PromptSession
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.completion import WordCompleter, NestedCompleter
+import sys
+import subprocess
+#from prompt_toolkit import PromptSession
+#from prompt_toolkit.history import InMemoryHistory
+#from prompt_toolkit.completion import WordCompleter, NestedCompleter
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
+
+def installPackages():
+    try:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.history import InMemoryHistory
+        from prompt_toolkit.completion import WordCompleter, NestedCompleter
+    except ImportError:
+        print("📦 Pakete nicht gefunden. Versuche, es zu installieren...")
+        packageList = ["prompt_toolkit"]
+        subprocess.check_call([sys.executable, "-m", "pip", "install", packageList])
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
@@ -518,8 +530,8 @@ def get_unlocked_commands():
         'inventory': None,
         'recipe': {
             'search': None,
-            'get': None,
-            'show': None
+            'get': { recipe.ID: None for recipe in Recipe.all() },
+            'show': { recipe.ID: None for recipe in Recipe.all() }
         },
         'status': None,
         'process': { recipe.ID: None for recipe in Recipe.all() },
@@ -531,6 +543,12 @@ def get_unlocked_commands():
 # Main Game Loop
 # -----------------------------
 def main():
+    installPackages()
+
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.history import InMemoryHistory
+    from prompt_toolkit.completion import WordCompleter, NestedCompleter
+
     print(gradientText(asciiArtLogo, ("#FBC2EB", "#A6C1EE"), "lr"))
     name = input("\nWhat's your name again? # ")
     player = Player(name)
