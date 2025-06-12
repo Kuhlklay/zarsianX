@@ -383,13 +383,13 @@ def printRecipe(recipe: Recipe):
     print("├─────────┼────────────────────────────────────┬──────────┤")
     for item, qty in recipe.inputs:
         if item == recipe.inputs[0][0]: # makes 'Inputs' in first column only show the first input
-            print(f"│ {colorText("Inputs", '#A6C1EE')}  │ {item.name:<34} │ {qty:>7}x │")
+            print(f"│ {colorText('Inputs', '#A6C1EE')}  │ {item.name:<34} │ {qty:>7}x │")
         else:
             print(f"│         │ {item.name:<34} │ {qty:>7}x │")
     print("├─────────┼────────────────────────────────────┼──────────┤")
     for item, qty in recipe.outputs:
         if item == recipe.outputs[0][0]: # makes 'Outputs' in first column only show the first output
-            print(f"│ {colorText("Outputs", '#A6C1EE')} │ {item.name:<34} │ {qty:>7}x │")
+            print(f"│ {colorText('Outputs', '#A6C1EE')} │ {item.name:<34} │ {qty:>7}x │")
         else:
             print(f"│         │ {item.name:<34} │ {qty:>7}x │")
     print("╰─────────┴────────────────────────────────────┴──────────╯\n")
@@ -555,13 +555,13 @@ Planetfall achieved! Now it's your turn...
 Pioneer acceptable!
 Toolbox opened!
 
-Type '{colorText("help", "#A7E06F")}' to see all available commands.
+Type '{colorText("help", '#A7E06F')}' to see all available commands.
 
 ⌇ Good luck, {colorText(player.name, "#FBC2EB")}.
 ⌇ - And remember: Humanity counts on you!
 """)
     def handleExit():
-        print(f"\nMemory encrypted!\nPlanet {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'))} is waiting for you to return.\n\nData(Player(\"{player.name}\")): [\n\t{obfuscateText('ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi')}\n]\n")
+        print(f"\nMemory encrypted!\nPlanet {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'))} is waiting for you to return.\n\nData(Player('{player.name}')): [\n\t{obfuscateText('ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi')}\n]\n")
 
     command_completer = NestedCompleter.from_nested_dict(get_unlocked_commands())
     #command_completer = WordCompleter([cmd[0] for cmd in commands], ignore_case=True)
