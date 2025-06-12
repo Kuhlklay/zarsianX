@@ -298,7 +298,6 @@ def wordWrap(text: str, n: int = 50) -> list[str]:
 
 #dynamic way to print all the commands with accurate spacing to the longest command
 commands = [
-    ("last", [(None, "Execute the last command again (excl. 'last', 'inventory', 'recipe', 'help' & 'exit')")]),
     ("mine", [("<material> <amount>?1", "Mine a material of additional count (e.g. '... coal 5')")]),
     ("inventory", [(None, "Show your current inventory")]),
     ("status", [(None, "Show your status (name, tool, inventory)")]),
@@ -542,10 +541,6 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
 ⌇ Good luck, {colorText(player.name, "#FBC2EB")}.
 ⌇ - And remember: Humanity counts on you!
 """)
-    excludedLastCommands = {"last", "inventory", "recipe", "help", "exit"}
-    validCommandNames = {cmd[0] for cmd in commands}.difference(excludedLastCommands)
-
-    lastCommand = ""
 
     command_completer = WordCompleter([cmd[0] for cmd in commands], ignore_case=True)
 
@@ -555,24 +550,6 @@ Type '{colorText("help", "#A7E06F")}' to see all available commands.
     while True:
         try:
             command = session.prompt("What do you want to do, pioneer? ⌗ ").strip().lower()
-        
-            # Save last command only if it's not excluded
-            if command.split()[0] not in excludedLastCommands:
-                lastCommand = command
-
-            # Handle 'last' command safely
-            if command == "last":
-                if lastCommand:
-                    first_word = lastCommand.split()[0]
-                    if first_word in validCommandNames:
-                        print(f"↶ Repeating last command: {lastCommand}")
-                        command = lastCommand
-                    else:
-                        print(log("Last command cannot be repeated.", LogLevel.WARNING))
-                        continue
-                else:
-                    print(log("No last command to repeat.", LogLevel.WARNING))
-                    continue
 
             parts = command.split()
 
