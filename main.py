@@ -12,9 +12,7 @@ def installPackages():
         from prompt_toolkit.history import InMemoryHistory
         from prompt_toolkit.completion import WordCompleter, NestedCompleter
     except ImportError:
-        print("📦 Pakete nicht gefunden. Versuche, es zu installieren...")
-        packageList = ["prompt_toolkit"]
-        subprocess.check_call(["pip", "install", packageList])
+        print("📦 Required packages not found. Execute 'install-linux.sh' (linux) or 'install-windows.bat' (windows) to install them.")
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
