@@ -2,6 +2,7 @@ import difflib
 import time
 import random
 import string
+import copy
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
 
@@ -24,12 +25,13 @@ def log(message: str, level: LogLevel) -> str:
     return f"{colorText(symbol + " " + message, color)}"
 
 class Inventory:
+    stack: int = 64
+
     def __init__(self, owner=None):
         self.owner = owner
         # Every slot is a Dictionary with "item" and "count"
         self.slots = []
         self.maxSlots = 36
-        self.stack = 64
 
     def addItem(self, item: Item, quantity=1):
         # Try to use existing stacks to fill up
@@ -249,29 +251,26 @@ class Player:
         return f"{self.money}チ (Chi)"
 
 class Processor:
-    def __init__(self):
-        self.name = "Gustavu the Processor"
-
     def process(self, player: Player, recipe: Recipe, amount: int = 1):
         if not recipe:
             print(log(f"No recipe found for {recipe}.", LogLevel.WARNING))
             return
 
-        # Prüfe, wie oft das Rezept maximal ausgeführt werden kann
+        # 1. Prüfe maximal mögliche Ausführung
         possible = float('inf')
-        for inp in recipe.inputs:
-            available = player.inventory.totalItemsOf(inp[0])
-            print(f"Checking {inp[0].name}: max {available} available, {inp[1]} required per unit.")
-            if available < inp[1]:
-                print(log(f"Not enough {inp[0]} for processing.", LogLevel.WARNING))
+        for item, qty in recipe.inputs:
+            available = player.inventory.totalItemsOf(item)
+            print(f"Checking input {item.name}: {available} available, {qty} required per unit.")
+            if available < qty:
+                print(log(f"Not enough {item.name} for processing.", LogLevel.WARNING))
                 return
-            possible = min(possible, available // inp[1])
+            possible = min(possible, available // qty)
 
         if possible == 0:
             print(log("Not enough materials for processing.", LogLevel.WARNING))
             return
 
-        # Handle amount: default to 1 if None, reject if < 1, cap if > possible
+        # amount validation
         if amount is None:
             amount = 1
         if amount < 1:
@@ -281,40 +280,42 @@ class Processor:
             print(log(f"Cannot process {amount}x {recipe.ID}. Only {possible} possible due to limited materials.", LogLevel.WARNING))
             return
 
-        # Entferne Input-Materialien
-        for inp in recipe.inputs:
-            if not player.inventory.removeItem(inp[0], inp[1] * amount):
-                print(log(f"Not enough {inp[0]} for processing.", LogLevel.WARNING))
+        # check for space in inventory for outputs
+        for out_item, out_qty in recipe.outputs:
+            space_available = player.inventory.spaceFor(out_item)
+            required = out_qty * amount
+            print(f"Checking output {out_item.name}: needs {required} slots, has {space_available} available.")
+            if space_available < required:
+                print(log(f"Not enough inventory space for output {out_item.name}.", LogLevel.WARNING))
                 return
 
-        totalTime = 0
-        
-        if player.name != "test":
-            totalTime = recipe.time * amount
+        # **Critical**: safe state of inventory (deepcopy of slots)
+        backup_slots = copy.deepcopy(player.inventory.slots)
 
-        print(f"Processing: {recipe.ID}\nTime: ~{totalTime}s\n")
+        # remove inputs
+        for item, qty in recipe.inputs:
+            if not player.inventory.removeItem(item, qty * amount):
+                print(log(f"Failed to remove {qty * amount}x {item.name} from inventory. Rolling back.", LogLevel.WARNING))
+                # restore from backup: rollback
+                player.inventory.slots = backup_slots
+                return
 
+        # processing time
+        totalTime = 0 if player.name == "test" else recipe.time * amount
+        print(f"Processing {amount}x {recipe.ID}... Estimated time: ~{totalTime}s")
         time.sleep(totalTime)
 
-        # Füge Output-Materialien hinzu
-        success = True
-        if not player.inventory.addItem(recipe.output[0], recipe.output[1] * amount):
-            success = False
+        # 6. Outputs hinzufügen
+        for out_item, out_qty in recipe.outputs:
+            if not player.inventory.addItem(out_item, out_qty * amount):
+                print(log(f"No room in inventory for the output {out_item.name}! Rolling back inputs.", LogLevel.WARNING))
+                # restore from backup: rollback
+                player.inventory.slots = backup_slots
+                return
 
-        if success:
-            print(f"Successfully processed {amount}x the recipe with ID '{recipe.ID}'!\n")
-        else:
-            # Rückgängig machen, falls kein Platz
-            for inp in recipe.inputs:
-                player.inventory.addItem(inp[0], inp[1] * amount)
-            for out in recipe.outputs:
-                player.inventory.removeItem(out[0], out[1] * amount)
-            print(log("No room in inventory for the result!\n", LogLevel.WARNING))
+        print(f"Successfully processed {amount}x recipe '{recipe.ID}'!")
 
 class Upgrader:
-    def __init__(self):
-        self.name = "Anton der Aufwerter"
-
     def upgrade(self, player: Player):
         if player.pickaxe.mingLevel == 0:
             if player.inventory.has_item("Hartkohle", 2):
@@ -352,7 +353,7 @@ def wordWrap(text: str, n: int = 50) -> list[str]:
 
 #dynamic way to print all the commands with accurate spacing to the longest command
 commands = [
-    ("mine", [("<material> <amount>?1", "Mine a material of additional count (e.g. '... coal 5')")]),
+    ("mine", [(f"<material> <amount {{1..{Inventory.stack * 4}}}>?1", "Mine a material of additional count (e.g. '... coal 5')")]),
     ("inventory", [(None, "Show your current inventory")]),
     ("status", [(None, "Show your status (name, tool, inventory)")]),
     ("process", [("<recipe> <amount>?1", "Process material according to the recipe (e.g. '... iron_ingot 2')")]),
@@ -562,7 +563,7 @@ def obfuscateText(text: str) -> str:
 # print(gradientText("Zars\nhallo\nP14a", ("#FBC2EB", "#A6C1EE"), "bu")) # !testing
 # print(colorText("Zars\nhallo\nP14a", "#FBC2EB")) # !testing
 
-def get_unlocked_commands():
+def getUnlockedCommands():
     return {
         # takes all ressources available
         'mine': { block.ID: None for block in Block.all() },
@@ -620,7 +621,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
     def handleExit():
         print(f"\nMemory encrypted!\nPlanet {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'))} is waiting for you to return.\n\nData(Player('{player.name}')): [\n\t{obfuscateText('ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi')}\n]\n")
 
-    command_completer = NestedCompleter.from_nested_dict(get_unlocked_commands())
+    command_completer = NestedCompleter.from_nested_dict(getUnlockedCommands())
 
     history = InMemoryHistory()
     session = PromptSession(history=history, completer=command_completer)

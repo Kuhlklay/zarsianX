@@ -317,12 +317,12 @@ Item.register("raw_zarsium", "Raw Zarsium")
 
 Item.register("copper_ingot", "Copper Ingot")
 Item.register("iron_ingot", "Iron Ingot")
+Item.register("brass_ingot", "Brass Ingot")
 Item.register("gold_ingot", "Gold Ingot")
 Item.register("aluminium_ingot", "Aluminium Ingot")
 Item.register("veridium_ingot", "Veridium Ingot")
 Item.register("titanium_ingot", "Titanium Ingot")
 Item.register("zarsium_ingot", "Zarsium Ingot")
-
 Item.register("steel_ingot", "Steel Ingot")
 
 #Tool.register(ID: str, name: str).level(lvl: int).timeFac(tf: float)
@@ -354,7 +354,6 @@ Recipe.register("aluminium_ingot").inputs([Item.RAW_ALUMINIUM]).outputs([Item.AL
 Recipe.register("steel_ingot").inputs([(Item.IRON_INGOT, 2), Item.COAL]).outputs([Item.STEEL_INGOT]).time(2)
 Recipe.register("veridium_ingot").inputs([Item.RAW_VERIDIUM]).outputs([Item.VERIDIUM_INGOT]).time(2.0)
 Recipe.register("titanium_ingot").inputs([Item.RAW_TITANIUM, Item.COAL]).outputs([Item.TITANIUM_INGOT]).time(2.2)
-Recipe.register("test").inputs([Item.COAL, Item.RAW_COPPER]).outputs([Item.BRASS_INGOT]).time(2.1)
 
 #ResearchPoint.register(ID: str, name: str).costs(i: list[tuple[Item, int]], money: int).blocks(b: list[Block]).tools(t: list[Tool]).recipes(r: list[Recipe])
 
