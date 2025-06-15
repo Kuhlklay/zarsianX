@@ -2,11 +2,7 @@ import difflib
 import time
 import random
 import string
-import sys
 import subprocess
-#from prompt_toolkit import PromptSession
-#from prompt_toolkit.history import InMemoryHistory
-#from prompt_toolkit.completion import WordCompleter, NestedCompleter
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
 
@@ -18,7 +14,7 @@ def installPackages():
     except ImportError:
         print("📦 Pakete nicht gefunden. Versuche, es zu installieren...")
         packageList = ["prompt_toolkit"]
-        subprocess.check_call([sys.executable, "-m", "pip", "install", packageList])
+        subprocess.check_call(["pip", "install", packageList])
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
@@ -35,8 +31,8 @@ class Inventory:
         self.owner = owner
         # Every slot is a Dictionary with "item" and "count"
         self.slots = []
-        self.maxSlots = 16
-        self.stack = 32
+        self.maxSlots = 36
+        self.stack = 64
 
     def addItem(self, item: Item, quantity=1):
         # Try to use existing stacks to fill up
@@ -90,30 +86,94 @@ class Inventory:
         if not self.slots:
             print()
             return log("Inventory is empty!\n", LogLevel.WARNING)
-        output = "\n╭───────────────────────────┬────────╮\n"
-        output += "│ Item                      │ Amount │\n"
-        output += "├───────────────────────────┼────────┤\n"
-        for slot in self.slots:
-            output += f"│ {slot['item'].name:<25} │ {slot['count']:>5}x │\n"
-        output += "├─────────────┬─────────────┴────────┤\n"
-        output += f"│ Total Items │ {self.totalItems():>20} │\n"
-        output += f"│ Money       │ {(self.owner.displayMoney() if self.owner else 'N/A'):>20} │\n"
-        output += "╰─────────────┴──────────────────────╯"
-        return output
 
-#class Pickaxe:
-#    def __init__(self):
-#        self.level = 0
-#
-#    def upgrade(self):
-#        if self.level < 4:
-#            self.level += 1
-#            print(f"Pickaxe upgraded to {self.level_names[self.level]}!")
-#        else:
-#            print(log("Maximum upgrade level reached!", LogLevel.WARNING))
-#
-#    def __str__(self):
-#        return f"{self.level_names[self.level]} Pickaxe"
+        slot_count = len(self.slots)
+
+        # Spaltenanzahl festlegen
+        if slot_count <= 8:
+            columns = 1
+        elif slot_count <= 26:
+            columns = 2
+        else:
+            columns = 3
+
+        col_width = 21
+        amt_width = 6
+        footer_title_width = 13
+
+        # Rahmenzeichen
+        corner_top_l = "╭"
+        corner_top_r = "╮"
+        corner_bot_l = "╰"
+        corner_bot_r = "╯"
+        edge_top = "┬"
+        edge_mid = "┼"
+        edge_left = "├"
+        edge_right = "┤"
+        edge_bot = "┴"
+        edge_v = "│"
+        line_h = "─"
+
+        # Rahmen-Zeilen bauen
+        def border_row(left, mid, right):
+            parts = []
+            for _ in range(columns):
+                parts.append(line_h * (col_width + 2) + mid + line_h * (amt_width + 2))
+            return f"{left}{mid.join(parts)}{right}\n"
+
+        def content_row(items):
+            row = edge_v
+            for name, amount in items:
+                row += f" {name:<{col_width}} {edge_v} {amount:>{amt_width - 1}}x {edge_v}"
+            for _ in range(columns - len(items)):
+                row += f" {' ' * (col_width)} {edge_v} {' ' * (amt_width)} {edge_v}"
+            return row + "\n"
+
+        def header_row():
+            header = edge_v
+            for _ in range(columns):
+                header += f" {'Item':<{col_width}} {edge_v} {'Amount':>{amt_width - 1}} {edge_v}"
+            return header + "\n"
+
+        output = "\n"
+        output += border_row(corner_top_l, edge_top, corner_top_r)
+        output += header_row()
+        output += border_row(edge_left, edge_mid, edge_right)
+
+        # Slots formatieren
+        rows = []
+        for i in range(0, slot_count, columns):
+            group = []
+            for j in range(columns):
+                idx = i + j
+                if idx < slot_count:
+                    item = self.slots[idx]
+                    group.append((item["item"].name, str(item["count"])))
+
+            rows.append(content_row(group))
+            
+        output += "".join(rows)
+
+        # Fußzeile
+        total_width = (col_width + amt_width + 6) * columns + 1
+
+        if columns == 1:
+            output += f"{edge_left}{line_h * footer_title_width}{edge_top}{line_h * (col_width + 2 - (footer_title_width + 1))}{edge_bot}{line_h * (amt_width + 2)}{edge_right}\n"
+        elif columns == 2:
+            output += f"{edge_left}{line_h * footer_title_width}{edge_top}{line_h * (col_width + 2 - (footer_title_width + 1))}{edge_bot}{line_h * (amt_width + 2)}{edge_bot}{line_h * (col_width + 2)}{edge_bot}{line_h * (amt_width + 2)}{edge_right}\n"
+        else:
+            output += f"{edge_left}{line_h * footer_title_width}{edge_top}{line_h * (col_width + 2 - (footer_title_width + 1))}{edge_bot}{line_h * (amt_width + 2)}{edge_bot}"
+            for _ in range(columns - 2):
+                output += f"{line_h * (col_width + 2)}{edge_bot}{line_h * (amt_width + 2)}{edge_bot}"
+
+            output += f"{line_h * (col_width + 2)}{edge_bot}{line_h * (amt_width + 2)}{edge_right}\n"
+
+        output += f"{edge_v} Total Items │ {self.totalItems():>{total_width - 18}} {edge_v}\n"
+        money_str = self.owner.displayMoney() if self.owner else "N/A"
+        output += f"{edge_v} Money       │ {money_str:>{total_width - 18}} {edge_v}\n"
+        output += f"{corner_bot_l}{line_h * footer_title_width}{edge_bot}{line_h * (total_width - 16)}{corner_bot_r}"
+
+        return output
 
 class Player:
     def __init__(self, name):
@@ -189,7 +249,7 @@ class Player:
             print(log(f"Not enough money! You have only {self.displayMoney()}.", LogLevel.WARNING))
 
     def displayMoney(self):
-        return f"{self.money}⍹ (Wro)"
+        return f"{self.money}チ (Chi)"
 
 class Processor:
     def __init__(self):
