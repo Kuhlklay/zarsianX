@@ -35,20 +35,16 @@ class Item:
 class Tool:
     Registry = {}
 
-    def __init__(self, ID: str, name: str, miningLevel: int, timeFac: float):
+    def __init__(self, ID: str, name: str):
         self.ID = ID
         self.name = name
-        self.miningLevel = miningLevel
-        self.timeFac = timeFac
+        self.miningLevel = 0
+        self.timeFac = 1.0
 
         if not isinstance(ID, str):
             raise TypeError(f"Tool ID must be a string: {ID}")
         if not isinstance(name, str):
             raise TypeError(f"Tool name must be a string: {name}")
-        if not isinstance(miningLevel, int):
-            raise TypeError(f"Mining level must be an integer: {miningLevel}")
-        if not isinstance(timeFac, float):
-            raise TypeError(f"Mining time must be a number of type float: {timeFac}")
 
     def __repr__(self):
         return f"<Tool: {self.name} (Lvl {self.miningLevel})>"
@@ -60,11 +56,11 @@ class Tool:
         return hash(self.ID)
 
     @classmethod
-    def register(cls, ID: str, name: str, miningLevel: int, timeFac: float):
-        tool = cls(ID, name, miningLevel, timeFac)
+    def register(cls, ID: str, name: str):
+        tool = cls(ID, name)
         cls.Registry[ID] = tool
         setattr(cls, ID.upper(), tool)
-        return tool
+        return ToolBuilder(tool)
 
     @classmethod
     def get(cls, ID: str):
@@ -73,6 +69,18 @@ class Tool:
     @classmethod
     def all(cls):
         return list(cls.Registry.values())
+
+class ToolBuilder:
+    def __init__(self, tool: Tool):
+        self.tool = tool
+
+    def level(self, miningLevel: int):
+        self.tool.miningLevel = miningLevel
+        return self
+
+    def timeFac(self, timeFac: float):
+        self.tool.timeFac = timeFac
+        return self
 
 DropRateEnum = Enum('DropRate', 'MIN MAX RATE')
 
@@ -106,13 +114,12 @@ class DropRates:
 class Block:
     Registry = {}
 
-    def __init__(self, ID: str, dropItem: Item, miningLevel: int, miningTime: float, dropRates: DropRates):
+    def __init__(self, ID: str):
         self.ID = ID
-        self.name = dropItem.name
-        self.dropItem = dropItem
-        self.miningLevel = miningLevel
-        self.miningTime = miningTime
-        self.dropRates = dropRates
+        self.dropItem = None
+        self.miningLevel = 0
+        self.miningTime = 1.0
+        self.dropRates = DropRates(1, 1, 1.0)
 
     def __repr__(self):
         return f"<Block: {self.ID} drops {self.dropItem.name} with min. mining level {self.miningLevel} and relative time {self.miningTime} seconds>"
@@ -124,11 +131,11 @@ class Block:
         return hash(self.ID)
 
     @classmethod
-    def register(cls, ID: str, dropItem: Item, miningLevel: int, miningTime: float, dropRates: DropRates):
-        block = cls(ID, dropItem, miningLevel, miningTime, dropRates)
+    def register(cls, ID: str):
+        block = cls(ID)
         cls.Registry[ID] = block
         setattr(cls, ID.upper(), block)
-        return block
+        return BlockBuilder(block)
 
     @classmethod
     def get(cls, ID: str):
@@ -149,35 +156,44 @@ class Block:
     def exists(cls, ID: str) -> bool:
         return ID in cls.Registry
 
+class BlockBuilder:
+    def __init__(self, block: Block):
+        self.block = block
+
+    def drops(self, dropItem: Item):
+        self.block.dropItem = dropItem
+        return self
+
+    def level(self, miningLevel: int):
+        self.block.miningLevel = miningLevel
+        return self
+
+    def time(self, miningTime: float):
+        self.block.miningTime = miningTime
+        return self
+
+    def rates(self, _min: int, _max: int, rate: float):
+        self.block.dropRates = DropRates(_min, _max, rate)
+        return self
+
 class Recipe:
     Registry = {}
 
-    def __init__(self, ID: str, inputs: list[tuple[Item, int]], outputs: list[tuple[Item, int]]): # inputs and outputs are lists of tuples (Item, quantity) or just one tuple
+    def __init__(self, ID: str): # inputs and outputs are lists of tuples (Item, quantity) or just one tuple
         self.ID = ID
-        self.inputs = inputs
-        self.outputs = outputs
-
-        if not isinstance(inputs, (list, tuple)):
-            raise ValueError(f"Recipe '{ID}' must have at least one input.")
-        if type(inputs) is list and not all(isinstance(i, tuple) for i in inputs):
-            raise TypeError(f"All inputs in list for recipe '{ID}' must be tuples.")
-        if not all(isinstance(i[0], Item) and isinstance(i[1], int) for i in inputs):
-            raise TypeError(f"All inputs for recipe '{ID}' must be (Item, quantity) tuples.")
-        if not isinstance(outputs, (list, tuple)):
-            raise ValueError(f"Recipe '{ID}' must have at least one output.")
-        if type(outputs) is list and not all(isinstance(i, tuple) for i in outputs):
-            raise TypeError(f"All outputs in list for recipe '{ID}' must be tuples.")
-        if not all(isinstance(i[0], Item) and isinstance(i[1], int) for i in outputs):
-            raise TypeError(f"All outputs for recipe '{ID}' must be (Item, quantity) tuples.")
+        self.inputs = []
+        self.output = ()
+        self.time = 1.0 # in seconds
         
     def __repr__(self):
         return f"<Block {self.name} ({self.ID}) takes {self.inputs} to make {self.outputs}>"
 
     @classmethod
-    def register(cls, ID: str, inputs: list[tuple[Item, int]], outputs: list[tuple[Item, int]]):
-        recipe = cls(ID, inputs, outputs)
+    def register(cls, ID: str):
+        recipe = cls(ID)
         cls.Registry[ID] = recipe
         setattr(cls, ID.upper(), recipe)
+        return RecipeBuilder(recipe)
 
     @classmethod
     def get(cls, ID):
@@ -186,6 +202,92 @@ class Recipe:
     @classmethod
     def all(cls):
         return list(cls.Registry.values())
+
+class RecipeBuilder:
+    def __init__(self, recipe: Recipe):
+        self.recipe = recipe
+
+    def inputs(self, inputs: list[tuple[Item, int]]):
+        self.recipe.inputs = inputs
+        return self
+
+    def outputs(self, output: tuple[Item, int]):
+        self.recipe.output = output
+        return self
+    
+    def time(self, time: float):
+        self.recipe.time = time
+        return self
+
+class ResearchPoint:
+    Registry = {}
+    Researched = []
+
+    def __init__(self, ID: str, name: str):
+        self.ID = ID
+        self.name = name
+        self.costsItems = []
+        self.costsMoney = 0
+        self.blocks = []
+        self.tools = []
+        self.recipes = []
+
+    def __repr__(self):
+        return f"<ResearchPoint: {self.name}>"
+
+    def __eq__(self, other):
+        return isinstance(other, ResearchPoint) and self.ID == other.ID
+
+    def __hash__(self):
+        return hash(self.ID)
+
+    @classmethod
+    def register(cls, ID: str, name: str):
+        rp = cls(ID, name)
+        cls.Registry[ID] = rp
+        setattr(cls, ID.upper(), rp)
+        return ResearchBuilder(rp)  # << Here the builder is given back
+
+    @classmethod
+    def get(cls, ID: str):
+        return cls.Registry.get(ID)
+
+    @classmethod
+    def all(cls):
+        return list(cls.Registry.values())
+
+    @classmethod
+    def research(cls, ID: str):
+        if ID not in cls.Researched:
+            cls.Researched.append(ID)
+            return True
+        return False
+
+    @classmethod
+    def isResearched(cls, ID: str):
+        return ID in cls.Researched
+
+
+class ResearchBuilder:
+    def __init__(self, researchPoint: ResearchPoint):
+        self.researchPoint = researchPoint
+
+    def costs(self, items: list[tuple[Item, int]], money: int):
+        self.researchPoint.costsItems = items
+        self.researchPoint.costsMoney = money
+        return self
+
+    def blocks(self, blocks: list[Block]):
+        self.researchPoint.blocks.extend(blocks)
+        return self
+
+    def tools(self, tools: list[Tool]):
+        self.researchPoint.tools.extend(tools)
+        return self
+
+    def recipes(self, recipes: list[Recipe]):
+        self.researchPoint.recipes.extend(recipes)
+        return self
 
 #Item.register("<id>", "<name>")
 
@@ -210,42 +312,74 @@ Item.register("zarsium_ingot", "Zarsium Ingot")
 
 Item.register("steel_ingot", "Steel Ingot")
 
-#Tool.register("<id>", "<name>", <mining-lvl>, <time-divisor (2.0=200% fast)>)
+#Tool.register(ID: str, name: str).level(lvl: int).timeFac(tf: float)
 
-Tool.register("wood_pickaxe", "Wooden Pickaxe", 0, 0.5)
-Tool.register("iron_pickaxe", "Iron Pickaxe", 1, 1.0)
+Tool.register("test_tool", "Test Tool").level(999999).timeFac(999999.0)
 
-Tool.register("test_tool", "Test Tool", 9999, 9999.0)
+Tool.register("wooden_pickaxe", "Wooden Pickaxe").level(0).timeFac(0.5)
+Tool.register("stone_pickaxe", "Stone Pickaxe").level(1).timeFac(1.5)
+Tool.register("iron_pickaxe", "Iron Pickaxe").level(2).timeFac(1.0)
 
-#Block.register("<name>", Item.<id>, <mining-lvl>, <time-sec>, DropRates(<min>, <max>, <rate (1=100%)>))
+#Block.register(ID: str).drops(item: Item).level(lvl: int).time(t: int).rates(_min: int, _max: int, rate: float)
 
-Block.register("coal", Item.COAL, 0, 2, DropRates(1, 3, 0.2))
-Block.register("iron", Item.RAW_IRON, 1, 3, DropRates(1, 2, 0.07))
-Block.register("copper", Item.RAW_COPPER, 1, 2.5, DropRates(1, 2, 0.07))
-Block.register("gold", Item.RAW_GOLD, 2, 3.5, DropRates(1, 2, 0.07))
-Block.register("aluminium", Item.RAW_ALUMINIUM, 2, 3.5, DropRates(1, 2, 0.07))
-Block.register("veridium", Item.RAW_VERIDIUM, 3, 4, DropRates(1, 2, 0.07))
-Block.register("titanium", Item.RAW_TITANIUM, 4, 4.5, DropRates(1, 2, 0.07))
-Block.register("stone", Item.COBBLED_STONE, 0, 1.5, DropRates(1, 1, 1.0))
+Block.register("stone").drops(Item.COBBLED_STONE).level(0).time(1.5).rates(1, 1, 1.0)
+Block.register("coal").drops(Item.COAL).level(0).time(1).rates(1, 3, 0.2)
+Block.register("iron").drops(Item.RAW_IRON).level(0).time(1.2).rates(1, 2, 0.07)
+Block.register("copper").drops(Item.RAW_COPPER).level(0).time(1.2).rates(1, 2, 0.07)
+Block.register("gold").drops(Item.RAW_GOLD).level(1).time(1.5).rates(1, 2, 0.07)
+Block.register("aluminium").drops(Item.RAW_ALUMINIUM).level(1).time(1.8).rates(1, 2, 0.07)
+Block.register("veridium").drops(Item.RAW_VERIDIUM).level(2).time(2.0).rates(1, 2, 0.07)
+Block.register("titanium").drops(Item.RAW_TITANIUM).level(1).time(2.5).rates(1, 2, 0.07)
 
-#Recipe.register(
-#   "<name>",
-#   [...(Item.<id>, <amount>)],
-#   [...(Item.<id>, <amount>)],
-#)
+#Recipe.register(ID)
 
-Recipe.register(
-    "iron_ingot",
-    [(Item.RAW_IRON, 1)],
-    [(Item.IRON_INGOT, 1)]
-)
-Recipe.register(
-    "copper_ingot",
-    [(Item.RAW_COPPER, 1)],
-    [(Item.COPPER_INGOT, 1)]
-)
-Recipe.register(
-    "steel_ingot",
-    [(Item.IRON_INGOT, 2), (Item.COAL, 1)],
-    [(Item.STEEL_INGOT, 1)]
-)
+Recipe.register("iron_ingot").inputs([(Item.RAW_IRON, 1)]).outputs((Item.IRON_INGOT, 1)).time(1.2)
+Recipe.register("gold_ingot").inputs([(Item.RAW_GOLD, 1)]).outputs((Item.GOLD_INGOT, 1)).time(1.5)
+Recipe.register("copper_ingot").inputs([(Item.RAW_COPPER, 1)]).outputs((Item.COPPER_INGOT, 1)).time(1.2)
+Recipe.register("aluminium_ingot").inputs([(Item.RAW_ALUMINIUM, 1)]).outputs((Item.ALUMINIUM_INGOT, 1)).time(1.8)
+Recipe.register("steel_ingot").inputs([(Item.IRON_INGOT, 2), (Item.COAL, 1)]).outputs((Item.STEEL_INGOT, 1)).time(2)
+Recipe.register("veridium_ingot").inputs([(Item.RAW_VERIDIUM, 1)]).outputs((Item.VERIDIUM_INGOT, 1)).time(2.0)
+Recipe.register("titanium_ingot").inputs([(Item.RAW_TITANIUM, 1), (Item.COAL, 1)]).outputs((Item.TITANIUM_INGOT, 1)).time(2.2)
+
+#ResearchPoint.register(ID: str, name: str).costs(i: list[tuple[Item, int]], money: int).blocks(b: list[Block]).tools(t: list[Tool]).recipes(r: list[Recipe])
+
+ResearchPoint.register("start", "Start") \
+    .costs([], 0).blocks([
+        Block.COAL,
+        Block.IRON,
+        Block.COPPER,
+        Block.STONE
+    ]
+    ).tools([
+        Tool.WOODEN_PICKAXE,
+        Tool.IRON_PICKAXE
+    ]
+    ).recipes([
+        Recipe.IRON_INGOT,
+        Recipe.COPPER_INGOT
+    ]
+    )
+
+ResearchPoint.register("basics", "Basics") \
+    .costs([
+        (Item.COAL, 20),
+        (Item.IRON_INGOT, 10)
+    ], 200
+    ).blocks([
+        Block.GOLD,
+        Block.ALUMINIUM,
+        Block.VERIDIUM,
+        Block.TITANIUM
+    ]
+    ).tools([
+        Tool.IRON_PICKAXE
+    ]
+    ).recipes([
+        Recipe.GOLD_INGOT,
+        Recipe.ALUMINIUM_INGOT,
+        Recipe.VERIDIUM_INGOT,
+        Recipe.TITANIUM_INGOT
+    ]
+    )
+
+ResearchPoint.research("start")

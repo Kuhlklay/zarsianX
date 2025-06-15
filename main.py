@@ -2,7 +2,6 @@ import difflib
 import time
 import random
 import string
-import subprocess
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
 
@@ -22,7 +21,7 @@ class LogLevel(Enum):
 def log(message: str, level: LogLevel) -> str:
     color = level.value["color"]
     symbol = level.value["symbol"]
-    return f"{colorText(symbol, color)} {message}"
+    return f"{colorText(symbol + " " + message, color)}"
 
 class Inventory:
     def __init__(self, owner=None):
@@ -54,7 +53,7 @@ class Inventory:
         return True
 
     def removeItem(self, item: Item, quantity=1):
-        removed = 0
+        removed: int = 0
         for slot in self.slots:
             if slot["item"] == item:
                 canRemove = min(slot["count"], quantity - removed)
@@ -68,7 +67,7 @@ class Inventory:
         return True
 
     def totalItemsOf(self, item: Item):
-        total = 0
+        total: int = 0
         for slot in self.slots:
             if slot["item"] == item:
                 total += slot["count"]
@@ -85,91 +84,92 @@ class Inventory:
             print()
             return log("Inventory is empty!\n", LogLevel.WARNING)
 
-        slot_count = len(self.slots)
+        sortedSlots = sorted(self.slots, key=lambda slot: slot["item"].name.lower())
+        slotCount = len(sortedSlots)
 
         # Spaltenanzahl festlegen
-        if slot_count <= 8:
+        if slotCount <= 8:
             columns = 1
-        elif slot_count <= 26:
+        elif slotCount <= 26:
             columns = 2
         else:
             columns = 3
 
-        col_width = 21
-        amt_width = 6
-        footer_title_width = 13
+        cWidth = 21  # column width
+        aWidth = 6   # amount width
+        ftWidth = 13 # footer titles width
 
         # Rahmenzeichen
-        corner_top_l = "╭"
-        corner_top_r = "╮"
-        corner_bot_l = "╰"
-        corner_bot_r = "╯"
-        edge_top = "┬"
-        edge_mid = "┼"
-        edge_left = "├"
-        edge_right = "┤"
-        edge_bot = "┴"
-        edge_v = "│"
-        line_h = "─"
+        ctl = "╭"
+        ctr = "╮"
+        cbl = "╰"
+        cbr = "╯"
+        st = "┬"
+        sl = "├"
+        sr = "┤"
+        sb = "┴"
+        sm = "┼"
+        lv = "│"
+        lh = "─"
 
         # Rahmen-Zeilen bauen
-        def border_row(left, mid, right):
+        def bRow(left, mid, right):
             parts = []
             for _ in range(columns):
-                parts.append(line_h * (col_width + 2) + mid + line_h * (amt_width + 2))
+                parts.append(lh * (cWidth + 2) + mid + lh * (aWidth + 2))
             return f"{left}{mid.join(parts)}{right}\n"
 
-        def content_row(items):
-            row = edge_v
+        def cRow(items):
+            row = lv
             for name, amount in items:
-                row += f" {name:<{col_width}} {edge_v} {amount:>{amt_width - 1}}x {edge_v}"
+                row += f" {name:<{cWidth}} {lv} {amount:>{aWidth - 1}}x {lv}"
             for _ in range(columns - len(items)):
-                row += f" {' ' * (col_width)} {edge_v} {' ' * (amt_width)} {edge_v}"
+                row += f" {' ' * (cWidth)} {lv} {' ' * (aWidth)} {lv}"
             return row + "\n"
 
-        def header_row():
-            header = edge_v
+        def hRow():
+            header = lv
             for _ in range(columns):
-                header += f" {'Item':<{col_width}} {edge_v} {'Amount':>{amt_width - 1}} {edge_v}"
+                header += f" {'Item':<{cWidth}} {lv} {'Amount':>{aWidth - 1}} {lv}"
             return header + "\n"
 
         output = "\n"
-        output += border_row(corner_top_l, edge_top, corner_top_r)
-        output += header_row()
-        output += border_row(edge_left, edge_mid, edge_right)
+        output += bRow(ctl, st, ctr)
+        output += hRow()
+        output += bRow(sl, sm, sr)
 
         # Slots formatieren
         rows = []
-        for i in range(0, slot_count, columns):
+        for i in range(0, slotCount, columns):
             group = []
             for j in range(columns):
                 idx = i + j
-                if idx < slot_count:
-                    item = self.slots[idx]
+                if idx < slotCount:
+                    item = sortedSlots[idx]
                     group.append((item["item"].name, str(item["count"])))
 
-            rows.append(content_row(group))
+            rows.append(cRow(group))
             
         output += "".join(rows)
 
         # Fußzeile
-        total_width = (col_width + amt_width + 6) * columns + 1
+        tWidth = (cWidth + aWidth + 6) * columns + 1 # total width
 
         if columns == 1:
-            output += f"{edge_left}{line_h * footer_title_width}{edge_top}{line_h * (col_width + 2 - (footer_title_width + 1))}{edge_bot}{line_h * (amt_width + 2)}{edge_right}\n"
+            output += f"{sl}{lh * ftWidth}{st}{lh * (cWidth + 2 - (ftWidth + 1))}{sb}{lh * (aWidth + 2)}{sr}\n"
         elif columns == 2:
-            output += f"{edge_left}{line_h * footer_title_width}{edge_top}{line_h * (col_width + 2 - (footer_title_width + 1))}{edge_bot}{line_h * (amt_width + 2)}{edge_bot}{line_h * (col_width + 2)}{edge_bot}{line_h * (amt_width + 2)}{edge_right}\n"
+            output += f"{sl}{lh * ftWidth}{st}{lh * (cWidth + 2 - (ftWidth + 1))}{sb}{lh * (aWidth + 2)}{sb}{lh * (cWidth + 2)}{sb}{lh * (aWidth + 2)}{sr}\n"
         else:
-            output += f"{edge_left}{line_h * footer_title_width}{edge_top}{line_h * (col_width + 2 - (footer_title_width + 1))}{edge_bot}{line_h * (amt_width + 2)}{edge_bot}"
+            output += f"{sl}{lh * ftWidth}{st}{lh * (cWidth + 2 - (ftWidth + 1))}{sb}{lh * (aWidth + 2)}{sb}"
             for _ in range(columns - 2):
-                output += f"{line_h * (col_width + 2)}{edge_bot}{line_h * (amt_width + 2)}{edge_bot}"
+                output += f"{lh * (cWidth + 2)}{sb}{lh * (aWidth + 2)}{sb}"
 
-            output += f"{line_h * (col_width + 2)}{edge_bot}{line_h * (amt_width + 2)}{edge_right}\n"
+            output += f"{lh * (cWidth + 2)}{sb}{lh * (aWidth + 2)}{sr}\n"
 
-        output += f"{edge_v} Total Items │ {self.totalItems():>{total_width - 18}} {edge_v}\n"
+        output += f"{lv} Total Items │ {self.totalItems():>{tWidth - 18}} {lv}\n"
         money_str = self.owner.displayMoney() if self.owner else "N/A"
-        output += f"{edge_v} Money       │ {money_str:>{total_width - 18}} {edge_v}\n"
-        output += f"{corner_bot_l}{line_h * footer_title_width}{edge_bot}{line_h * (total_width - 16)}{corner_bot_r}"
+        output += f"{lv} Money       │ {money_str:>{tWidth - 19}} {lv}\n"
+        output += f"{cbl}{lh * ftWidth}{sb}{lh * (tWidth - 16)}{cbr}\n"
 
         return output
 
@@ -177,45 +177,33 @@ class Player:
     def __init__(self, name):
         self.name = name
         self.inventory = Inventory(owner=self)
-        self.tool = Tool.get("test_tool")  # Start with a test tool
-        self.money = 0  # Währung の (Rwo)
+        if name == "test":
+            self.tool = Tool.get("test_tool")  # Start with a test tool
+        else:
+            self.tool = Tool.get("wooden_pickaxe") # Start with a wooden pickaxe
+        self.money = 0
 
     def mine(self, material: str, amount: int = 1):
-        block = Block.get(material.lower())
+        block = Block.get(material)
 
         if not block or not Block.exists(material):
-            print(log(f"Can not mine '{material}' because it does not exist.", LogLevel.WARNING))
+            print(log(f"Unable to mine '{material}' because it's not scannable!", LogLevel.WARNING))
             return
 
         # Check ob Pickaxe-Level ausreicht
         if self.tool.miningLevel < block.miningLevel:
-            print(log(f"Your tool is too weak to mine {block.name}.", LogLevel.WARNING))
+            print(log(f"Tool too weak to mine {block.ID}!", LogLevel.WARNING))
             return
-
-        # Verfügbare Inventar-Kapazität prüfen
-        possible = (self.inventory.maxSlots * self.inventory.stack) - self.inventory.totalItems()
-        if possible <= 0:
-            print(log("Inventory is full!", LogLevel.WARNING))
-            return
-
-        if amount is None or amount > possible:
-            amount = possible
-        if amount <= 0:
-            print(log("No space in inventory!", LogLevel.WARNING))
-            return
-
-        print(f"\n{colorText(self.name, '#6A7EAC')} is using a {self.tool.name} trying to mine {amount}x {block.name}...")
-
-        # Mining-Zeit basierend auf Material und Menge
-        totalTime = block.miningTime * amount / self.tool.timeFac
-        time.sleep(totalTime)
+        
+        if amount > self.inventory.stack * 4:
+            log("Why so much?", LogLevel.WARNING)
 
         total = 0
         for _ in range(amount):
             drops = block.dropRates
             _min = drops.getRateFor(DropRateEnum.MIN)
             _max = drops.getRateFor(DropRateEnum.MAX)
-            #print(f"Drops for {block.name}: {_min}x (min), {_max}x (max), rate: {drops.getRateFor(DropRateEnum.RATE)}")
+            #print(f"Drops for {block.ID}: {_min}x (min), {_max}x (max), rate: {drops.getRateFor(DropRateEnum.RATE)}")
             # Berechne zusätzlichen Drop basierend auf der Rate
             while _min < _max:
                 if random.random() <= drops.getRateFor(DropRateEnum.RATE):
@@ -224,15 +212,26 @@ class Player:
                     break
             total += _min
 
+        # Verfügbare Inventar-Kapazität prüfen
+        possible = (self.inventory.maxSlots * self.inventory.stack) - self.inventory.totalItems()
+        if possible <= total:
+            print(log("Inventory is full!", LogLevel.WARNING))
+            return
+
+        # Mining-Zeit basierend auf Material und Menge
+        totalTime = block.miningTime * total / self.tool.timeFac
+        print(f"\nTool: {self.tool.name}\nMining: {block.ID} ({amount}x)\nTime: ~{totalTime:.2f}s\n")
+
+        time.sleep(totalTime)
         added = self.inventory.addItem(block.dropItem, total)
 
         if added:
-            print(f"You've mined {amount}x {block.name} and received {total}x {block.dropItem.name}.\n")
+            print(f"You've mined {amount}x {block.ID} and received {total}x {block.dropItem.name}.\n")
         else:
-            print(colorText("Not all items could be added to the inventory.", "#FF6961"))
-            print(colorText("Go clean it up.\n", "#FF6961"))
+            print(log("Not all items could be added to the inventory.", LogLevel.WARNING))
+            print(log("Go clean it up.\n", LogLevel.WARNING))
 
-    def hasMoney(self, amount):
+    def hasMoney(self, amount) -> bool:
         return self.money >= amount
 
     def addMoney(self, amount):
@@ -288,22 +287,28 @@ class Processor:
                 print(log(f"Not enough {inp[0]} for processing.", LogLevel.WARNING))
                 return
 
+        totalTime = 0
+        
+        if player.name != "test":
+            totalTime = recipe.time * amount
+
+        print(f"Processing: {recipe.ID}\nTime: ~{totalTime}s\n")
+
+        time.sleep(totalTime)
+
         # Füge Output-Materialien hinzu
         success = True
-        for out in recipe.outputs:
-            if not player.inventory.addItem(out[0], out[1] * amount):
-                success = False
-                break
+        if not player.inventory.addItem(recipe.output[0], recipe.output[1] * amount):
+            success = False
 
         if success:
-            print(f"Gustavu has processed {amount}x {recipe.ID} successfully!")
+            print(f"Successfully processed {amount}x the recipe with ID '{recipe.ID}'!\n")
         else:
             # Rückgängig machen, falls kein Platz
             for inp in recipe.inputs:
                 player.inventory.addItem(inp[0], inp[1] * amount)
-            for out in recipe.outputs:
-                player.inventory.removeItem(out[0], out[1] * amount)
-            print(colorText("No room in inventory for the result!", "#FF6961"))
+            player.inventory.removeItem(recipe.output[0], recipe.output[1] * amount)
+            print(log("No room in inventory for the result!\n", LogLevel.WARNING))
 
 class Upgrader:
     def __init__(self):
@@ -322,33 +327,11 @@ class Upgrader:
 
 class Bizman: # short for Businessman
     def __init__(self):
-        self.name = "Bizman"
-
-    def create(self, player: Player):
-        if player.inventory.hasItem("Hartkohle", 1):
-            player.inventory.removeItem("hard_coal", 1)
-            antiquity = Antiquity()
-            if player.inventory.addItem(antiquity.name, 1):
-                print(f"Bizman forged a '{antiquity.name}'!")
-            else:
-                print(colorText("There's no room in your backpack for this antiquity!", "#FF6961"))
-        else:
-            print(colorText("Not enough coal to create an antiquity.", "#FF6961"))
-
-class Antiquity:
-    def __init__(self):
-        self.name = self.generateName()
-
-    def generateName(self):
-        rarities = ["common", "uncommon", "rare", "epic", "legendary"]
-        rarity = random.choice(rarities)
-        return f"Antiquity ({rarity})"
-
-    def __str__(self):
-        return self.name
+        pass
 
 # -----------------------------
 # Helper functions
+# -----------------------------
 
 def wordWrap(text: str, n: int = 50) -> list[str]:
     words = text.split()
@@ -405,6 +388,7 @@ def printHelp():
     maxArgLength = max(len(arg[0]) for cmd in cmds for arg in cmd[1])
     maxDescLength = 50  # Max length for description
 
+    print()
     print(log("'?' means optional value with default value e.g. 4", LogLevel.TIP))
     print(log("'|' means or / option", LogLevel.TIP))
 
@@ -578,9 +562,6 @@ def obfuscateText(text: str) -> str:
 # print(gradientText("Zars\nhallo\nP14a", ("#FBC2EB", "#A6C1EE"), "bu")) # !testing
 # print(colorText("Zars\nhallo\nP14a", "#FBC2EB")) # !testing
 
-all_resources = ['coal', 'copper', 'iron', 'gold']
-unlocked_resources = ['coal', 'copper']  # Am Anfang nur "coal" verfügbar
-
 def get_unlocked_commands():
     return {
         # takes all ressources available
@@ -611,8 +592,8 @@ def main():
     name = input("\nWhat's your name again? # ")
     player = Player(name)
     processor = Processor()
-    #anton = Upgrader()
-    #vincent = Bizman()
+    upgrader = Upgrader()
+    bizman = Bizman()
 
     print(gradientText(asciiArtPlanet, ("#E4BDD4", "#4839A1"), "td"))
     print(f"""
@@ -640,7 +621,6 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
         print(f"\nMemory encrypted!\nPlanet {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'))} is waiting for you to return.\n\nData(Player('{player.name}')): [\n\t{obfuscateText('ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi')}\n]\n")
 
     command_completer = NestedCompleter.from_nested_dict(get_unlocked_commands())
-    #command_completer = WordCompleter([cmd[0] for cmd in commands], ignore_case=True)
 
     history = InMemoryHistory()
     session = PromptSession(history=history, completer=command_completer)
@@ -664,7 +644,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
                 else:
                     print(log("Pioneer! Provide a material, e.g. 'mine coal' or with a count 'mine coal 5'.", LogLevel.WARNING))
             elif command == "inventory":
-                print("Current inventory:", player.inventory)
+                print(player.inventory)
             elif command == "status":
                 print(f"\nName: {player.name}")
                 print(f"Tool: {player.tool.name} (Level {player.tool.miningLevel})")
