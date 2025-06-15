@@ -169,7 +169,7 @@ class Inventory:
         output += f"{lv} Total Items │ {self.totalItems():>{tWidth - 18}} {lv}\n"
         money_str = self.owner.displayMoney() if self.owner else "N/A"
         output += f"{lv} Money       │ {money_str:>{tWidth - 19}} {lv}\n"
-        output += f"{cbl}{lh * ftWidth}{sb}{lh * (tWidth - 16)}{cbr}\n"
+        output += f"{cbl}{lh * ftWidth}{sb}{lh * (tWidth - 16)}{cbr}"
 
         return output
 
@@ -307,7 +307,8 @@ class Processor:
             # Rückgängig machen, falls kein Platz
             for inp in recipe.inputs:
                 player.inventory.addItem(inp[0], inp[1] * amount)
-            player.inventory.removeItem(recipe.output[0], recipe.output[1] * amount)
+            for out in recipe.outputs:
+                player.inventory.removeItem(out[0], out[1] * amount)
             print(log("No room in inventory for the result!\n", LogLevel.WARNING))
 
 class Upgrader:
@@ -388,7 +389,6 @@ def printHelp():
     maxArgLength = max(len(arg[0]) for cmd in cmds for arg in cmd[1])
     maxDescLength = 50  # Max length for description
 
-    print()
     print(log("'?' means optional value with default value e.g. 4", LogLevel.TIP))
     print(log("'|' means or / option", LogLevel.TIP))
 

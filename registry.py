@@ -1,5 +1,6 @@
 from collections import namedtuple
 from enum import Enum
+from typing import Union
 
 class Item:
     Registry = {}
@@ -182,7 +183,7 @@ class Recipe:
     def __init__(self, ID: str): # inputs and outputs are lists of tuples (Item, quantity) or just one tuple
         self.ID = ID
         self.inputs = []
-        self.output = ()
+        self.outputs = []
         self.time = 1.0 # in seconds
         
     def __repr__(self):
@@ -207,15 +208,27 @@ class RecipeBuilder:
     def __init__(self, recipe: Recipe):
         self.recipe = recipe
 
-    def inputs(self, inputs: list[tuple[Item, int]]):
-        self.recipe.inputs = inputs
+    def inputs(self, inputs: list[Union[Item, tuple[Item, int]]]):
+        normalized = []
+        for inp in inputs:
+            if isinstance(inp, tuple):
+                normalized.append(inp)
+            else:
+                normalized.append((inp, 1))
+        self.recipe.inputs = normalized
         return self
 
-    def outputs(self, output: tuple[Item, int]):
-        self.recipe.output = output
+    def outputs(self, outputs: list[Union[Item, tuple[Item, int]]]):
+        normalized = []
+        for out in outputs:
+            if isinstance(out, tuple):
+                normalized.append(out)
+            else:
+                normalized.append((out, 1))
+        self.recipe.outputs = normalized
         return self
     
-    def time(self, time: float):
+    def time(self, time: float = 1.0):
         self.recipe.time = time
         return self
 
@@ -272,7 +285,7 @@ class ResearchBuilder:
     def __init__(self, researchPoint: ResearchPoint):
         self.researchPoint = researchPoint
 
-    def costs(self, items: list[tuple[Item, int]], money: int):
+    def costs(self, items: list[tuple[Item, int]] = [], money: int = 0):
         self.researchPoint.costsItems = items
         self.researchPoint.costsMoney = money
         return self
@@ -333,18 +346,20 @@ Block.register("titanium").drops(Item.RAW_TITANIUM).level(1).time(2.5).rates(1, 
 
 #Recipe.register(ID)
 
-Recipe.register("iron_ingot").inputs([(Item.RAW_IRON, 1)]).outputs((Item.IRON_INGOT, 1)).time(1.2)
-Recipe.register("gold_ingot").inputs([(Item.RAW_GOLD, 1)]).outputs((Item.GOLD_INGOT, 1)).time(1.5)
-Recipe.register("copper_ingot").inputs([(Item.RAW_COPPER, 1)]).outputs((Item.COPPER_INGOT, 1)).time(1.2)
-Recipe.register("aluminium_ingot").inputs([(Item.RAW_ALUMINIUM, 1)]).outputs((Item.ALUMINIUM_INGOT, 1)).time(1.8)
-Recipe.register("steel_ingot").inputs([(Item.IRON_INGOT, 2), (Item.COAL, 1)]).outputs((Item.STEEL_INGOT, 1)).time(2)
-Recipe.register("veridium_ingot").inputs([(Item.RAW_VERIDIUM, 1)]).outputs((Item.VERIDIUM_INGOT, 1)).time(2.0)
-Recipe.register("titanium_ingot").inputs([(Item.RAW_TITANIUM, 1), (Item.COAL, 1)]).outputs((Item.TITANIUM_INGOT, 1)).time(2.2)
+Recipe.register("iron_ingot").inputs([Item.RAW_IRON]).outputs([Item.IRON_INGOT]).time(1.2)
+Recipe.register("copper_ingot").inputs([Item.RAW_COPPER]).outputs([Item.COPPER_INGOT]).time(1.2)
+Recipe.register("brass_ingot").inputs([Item.IRON_INGOT, Item.COPPER_INGOT]).outputs([Item.BRASS_INGOT]).time(1.4)
+Recipe.register("gold_ingot").inputs([Item.RAW_GOLD]).outputs([Item.GOLD_INGOT]).time(1.5)
+Recipe.register("aluminium_ingot").inputs([Item.RAW_ALUMINIUM]).outputs([Item.ALUMINIUM_INGOT]).time(1.8)
+Recipe.register("steel_ingot").inputs([(Item.IRON_INGOT, 2), Item.COAL]).outputs([Item.STEEL_INGOT]).time(2)
+Recipe.register("veridium_ingot").inputs([Item.RAW_VERIDIUM]).outputs([Item.VERIDIUM_INGOT]).time(2.0)
+Recipe.register("titanium_ingot").inputs([Item.RAW_TITANIUM, Item.COAL]).outputs([Item.TITANIUM_INGOT]).time(2.2)
+Recipe.register("test").inputs([Item.COAL, Item.RAW_COPPER]).outputs([Item.BRASS_INGOT]).time(2.1)
 
 #ResearchPoint.register(ID: str, name: str).costs(i: list[tuple[Item, int]], money: int).blocks(b: list[Block]).tools(t: list[Tool]).recipes(r: list[Recipe])
 
 ResearchPoint.register("start", "Start") \
-    .costs([], 0).blocks([
+    .blocks([
         Block.COAL,
         Block.IRON,
         Block.COPPER,
