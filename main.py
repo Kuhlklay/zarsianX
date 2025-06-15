@@ -587,14 +587,14 @@ def main():
 
     from prompt_toolkit import PromptSession
     from prompt_toolkit.history import InMemoryHistory
-    from prompt_toolkit.completion import WordCompleter, NestedCompleter
+    from prompt_toolkit.completion import NestedCompleter
 
     print(gradientText(asciiArtLogo, ("#FBC2EB", "#A6C1EE"), "lr"))
     name = input("\nWhat's your name again? # ")
     player = Player(name)
     processor = Processor()
-    upgrader = Upgrader()
-    bizman = Bizman()
+    #upgrader = Upgrader()
+    #bizman = Bizman()
 
     print(gradientText(asciiArtPlanet, ("#E4BDD4", "#4839A1"), "td"))
     print(f"""
