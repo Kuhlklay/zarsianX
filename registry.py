@@ -76,7 +76,13 @@ class ToolBuilder:
 
     def costs(self, items: list[Union[Item, tuple[Item, int]]]):
         normalized = []
-        
+        for i in items:
+            if isinstance(i, tuple):
+                normalized.append(i)
+            else:
+                normalized.append((i, 1))
+        self.recipe.inputs = normalized
+        return self
 
     def level(self, miningLevel: int):
         self.tool.miningLevel = miningLevel
@@ -347,7 +353,7 @@ Block.register("aluminium").drops(Item.RAW_ALUMINIUM).level(1).time(1.8).rates(1
 Block.register("veridium").drops(Item.RAW_VERIDIUM).level(2).time(2.0).rates(1, 2, 0.07)
 Block.register("titanium").drops(Item.RAW_TITANIUM).level(1).time(2.5).rates(1, 2, 0.07)
 
-#Recipe.register(ID)
+#Recipe.register(ID: str).inputs(i: list[Union[Item, tuple[Item, int]]]).outputs(o: list[Union[Item, tuple[Item, int]]]).time(t: float)
 
 Recipe.register("iron_ingot").inputs([Item.RAW_IRON]).outputs([Item.IRON_INGOT]).time(1.2)
 Recipe.register("copper_ingot").inputs([Item.RAW_COPPER]).outputs([Item.COPPER_INGOT]).time(1.2)

@@ -3,6 +3,7 @@ import time
 import random
 import string
 import copy
+import re
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
 
@@ -24,6 +25,11 @@ def log(message: str, level: LogLevel) -> str:
     symbol = level.value["symbol"]
     return f"{colorText(symbol + " " + message, color)}"
 
+def stripColor(text: str) -> str:
+    # Entfernt ANSI-Escape-Sequenzen aus dem Text für die Längenberechnung
+    ansi_pattern = re.compile(r'\033\[[0-9;]*m')
+    return ansi_pattern.sub('', text)
+
 class Inventory:
     stack: int = 64
 
@@ -31,7 +37,7 @@ class Inventory:
         self.owner = owner
         # Every slot is a Dictionary with "item" and "count"
         self.slots = []
-        self.maxSlots = 36
+        self.maxSlots = 32
 
     def addItem(self, item: Item, quantity=1):
         # Try to use existing stacks to fill up
@@ -168,10 +174,11 @@ class Inventory:
 
             output += f"{lh * (cWidth + 2)}{sb}{lh * (aWidth + 2)}{sr}\n"
 
-        output += f"{lv} Total Items │ {self.totalItems():>{tWidth - 18}} {lv}\n"
+        output += f"{lv} Total Items │ {(str(self.totalItems()) + "/" + str(self.stack * self.maxSlots)):>{tWidth - 18}} {lv}\n"
+        output += f"{lv} Stacks      │ {(str(len(self.slots)) + "/" + str(self.maxSlots)):>{tWidth - 18}} {lv}\n"
         money_str = self.owner.displayMoney() if self.owner else "N/A"
         output += f"{lv} Money       │ {money_str:>{tWidth - 19}} {lv}\n"
-        output += f"{cbl}{lh * ftWidth}{sb}{lh * (tWidth - 16)}{cbr}"
+        output += f"{cbl}{lh * ftWidth}{sb}{lh * (tWidth - 16)}{cbr}\n"
 
         return output
 
@@ -221,7 +228,7 @@ class Player:
             return
 
         # Mining-Zeit basierend auf Material und Menge
-        totalTime = block.miningTime * total / self.tool.timeFac
+        totalTime = block.miningTime * amount / self.tool.timeFac
         print(f"\nTool: {self.tool.name}\nMining: {block.ID} ({amount}x)\nTime: ~{totalTime:.2f}s\n")
 
         time.sleep(totalTime)
@@ -250,24 +257,31 @@ class Player:
     def displayMoney(self):
         return f"{self.money}チ (Chi)"
 
+def printProcessingInfo(player: Player, recipe: Recipe, amount: int):
+    possible = float('inf')
+    print("\n╭────────────────────────────────────────┬─────────╮")
+    colored = colorText(str(recipe.ID), '#A6C1EE')
+    plain = stripColor(colored)
+    # Korrigiere die Ausrichtung für ANSI-Sequenzen
+    padding = 38 + (len(colored) - len(plain))
+    print(f"│ {colored:<{padding}} │ {str(amount):>6}x │")
+    print("├───────────────────────┬────────────────┼─────────┤")
+    print("│ Needed Items          │ Available      │ Missing │")
+    print("├───────────────────────┼────────────────┼─────────┤")
+    for item, n in recipe.inputs:
+        required = n * amount
+        available = player.inventory.totalItemsOf(item)
+        possible = min(possible, available // n)
+        missing = max(0, required - available)
+        print(f"│ {item.name:<21} │ {(str(available) + '/' + str(required)):<14} │ {missing:>6}x │")
+    print("├──────────┬────────────┴────────────────┴─────────┤")
+    print(f"│ Possible │ {possible:>36}x │")
+    print("╰──────────┴───────────────────────────────────────╯\n")
+
 class Processor:
     def process(self, player: Player, recipe: Recipe, amount: int = 1):
         if not recipe:
             print(log(f"No recipe found for {recipe}.", LogLevel.WARNING))
-            return
-
-        # 1. Prüfe maximal mögliche Ausführung
-        possible = float('inf')
-        for item, qty in recipe.inputs:
-            available = player.inventory.totalItemsOf(item)
-            print(f"Checking input {item.name}: {available} available, {qty} required per unit.")
-            if available < qty:
-                print(log(f"Not enough {item.name} for processing.", LogLevel.WARNING))
-                return
-            possible = min(possible, available // qty)
-
-        if possible == 0:
-            print(log("Not enough materials for processing.", LogLevel.WARNING))
             return
 
         # amount validation
@@ -276,28 +290,36 @@ class Processor:
         if amount < 1:
             print(log("Amount must be at least 1.", LogLevel.WARNING))
             return
+
+        # 1. Prüfe maximal mögliche Ausführung
+        possible = float('inf')
+        for i, n in recipe.inputs:
+            available = player.inventory.totalItemsOf(i)
+            #print(f"Checking input {i.name}: {available} available, {n} required per unit.")
+            #if available < n:
+            #    print(log(f"Not enough {i.name} for processing.", LogLevel.WARNING))
+            possible = min(possible, available // n)
+
+        # print the recipe processing info
+        printProcessingInfo(player, recipe, amount)
+
+        if possible == 0:
+            print(log("Not enough materials for processing.\n", LogLevel.WARNING))
+            return
+        
         if amount > possible:
-            print(log(f"Cannot process {amount}x {recipe.ID}. Only {possible} possible due to limited materials.", LogLevel.WARNING))
+            print(log(f"Cannot process {amount}x {recipe.ID}. Only {possible} possible due to limited materials.\n", LogLevel.WARNING))
             return
 
-        # check for space in inventory for outputs
-        for out_item, out_qty in recipe.outputs:
-            space_available = player.inventory.spaceFor(out_item)
-            required = out_qty * amount
-            print(f"Checking output {out_item.name}: needs {required} slots, has {space_available} available.")
-            if space_available < required:
-                print(log(f"Not enough inventory space for output {out_item.name}.", LogLevel.WARNING))
-                return
-
         # **Critical**: safe state of inventory (deepcopy of slots)
-        backup_slots = copy.deepcopy(player.inventory.slots)
+        backupSlots = copy.deepcopy(player.inventory.slots)
 
         # remove inputs
-        for item, qty in recipe.inputs:
-            if not player.inventory.removeItem(item, qty * amount):
-                print(log(f"Failed to remove {qty * amount}x {item.name} from inventory. Rolling back.", LogLevel.WARNING))
+        for i, n in recipe.inputs:
+            if not player.inventory.removeItem(i, n * amount):
+                print(log(f"Failed to remove {n * amount}x {i.name} from inventory. Rolling back.", LogLevel.WARNING))
                 # restore from backup: rollback
-                player.inventory.slots = backup_slots
+                player.inventory.slots = backupSlots
                 return
 
         # processing time
@@ -305,12 +327,12 @@ class Processor:
         print(f"Processing {amount}x {recipe.ID}... Estimated time: ~{totalTime}s")
         time.sleep(totalTime)
 
-        # 6. Outputs hinzufügen
-        for out_item, out_qty in recipe.outputs:
-            if not player.inventory.addItem(out_item, out_qty * amount):
-                print(log(f"No room in inventory for the output {out_item.name}! Rolling back inputs.", LogLevel.WARNING))
+        # add outputs to inventory
+        for i, n in recipe.outputs:
+            if not player.inventory.addItem(i, n * amount):
+                print(log(f"No room in inventory for the output {i.name}! Rolling back inputs.", LogLevel.WARNING))
                 # restore from backup: rollback
-                player.inventory.slots = backup_slots
+                player.inventory.slots = backupSlots
                 return
 
         print(f"Successfully processed {amount}x recipe '{recipe.ID}'!")
