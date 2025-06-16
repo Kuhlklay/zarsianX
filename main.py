@@ -50,7 +50,7 @@ class Inventory:
                 self.slots.append({"item": item, "count": add})
                 quantity -= add
             else:
-                print(log(f"Not enough free space in inventory for {item}!", LogLevel.WARNING))
+                print(log(f"No free space inventory space for {item.name}!", LogLevel.WARNING))
                 return False
         return True
 
@@ -64,7 +64,7 @@ class Inventory:
         # Leere Slots entfernen
         self.slots = [slot for slot in self.slots if slot["count"] > 0]
         if removed < quantity:
-            print(log(f"Not enough {item} to remove!", LogLevel.WARNING))
+            print(log(f"Not enough {item.name} to remove!", LogLevel.WARNING))
             return False
         return True
 
@@ -315,7 +315,9 @@ class Processor:
 
         print(f"Successfully processed {amount}x recipe '{recipe.ID}'!")
 
-class Upgrader:
+class Bizman: # short for Businessman
+    # functions for upgrading the pickaxe to same or upper levels costing different ressources
+
     def upgrade(self, player: Player):
         if player.pickaxe.mingLevel == 0:
             if player.inventory.has_item("Hartkohle", 2):
@@ -326,10 +328,6 @@ class Upgrader:
                 print("Nicht genügend Hartkohle, um die Pickaxe aufzuwerten.")
         else:
             print("Die Pickaxe ist bereits aufgewertet oder ein Upgrade ist nicht verfügbar.")
-
-class Bizman: # short for Businessman
-    def __init__(self):
-        pass
 
 # -----------------------------
 # Helper functions
@@ -593,7 +591,6 @@ def main():
     name = input("\nWhat's your name again? # ")
     player = Player(name)
     processor = Processor()
-    #upgrader = Upgrader()
     #bizman = Bizman()
 
     print(gradientText(asciiArtPlanet, ("#E4BDD4", "#4839A1"), "td"))

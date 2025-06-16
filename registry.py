@@ -74,6 +74,10 @@ class ToolBuilder:
     def __init__(self, tool: Tool):
         self.tool = tool
 
+    def costs(self, items: list[Union[Item, tuple[Item, int]]]):
+        normalized = []
+        
+
     def level(self, miningLevel: int):
         self.tool.miningLevel = miningLevel
         return self
