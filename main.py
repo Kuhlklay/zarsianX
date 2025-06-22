@@ -11,8 +11,6 @@ from registry import Item, Tool, Block, Recipe, DropRateEnum
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.completion import Completer, Completion, NestedCompleter
-from prompt_toolkit.lexers import PygmentsLexer
-from pygments.lexers.python import PythonLexer
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
@@ -67,7 +65,7 @@ class Inventory:
                 canRemove = min(slot["count"], quantity - removed)
                 slot["count"] -= canRemove
                 removed += canRemove
-        # Leere Slots entfernen
+        # Remove empty slots
         self.slots = [slot for slot in self.slots if slot["count"] > 0]
         if removed < quantity:
             print(log(f"Not enough {item.name} to remove!", LogLevel.WARNING))
@@ -88,14 +86,10 @@ class Inventory:
         return self.totalItemsOf(item) >= quantity
 
     def __str__(self):
-        if not self.slots:
-            print()
-            print(log("Inventory is empty!\n", LogLevel.WARNING))
-
         sortedSlots = sorted(self.slots, key=lambda slot: slot["item"].name.lower())
         slotCount = len(sortedSlots)
 
-        # Columns calculation based on slot count
+        # Always show 1 column minimum
         if slotCount <= 8:
             columns = 1
         elif slotCount <= 26:
@@ -120,8 +114,7 @@ class Inventory:
         lv = "│"
         lh = "─"
 
-        # Header
-        # Row formatting functions for table building
+        # Row formatting functions
         def bRow(left, mid, right):
             parts = []
             for _ in range(columns):
@@ -147,22 +140,24 @@ class Inventory:
         output += hRow()
         output += bRow(sl, sm, sr)
 
-        # Slots filling
-        rows = []
-        for i in range(0, slotCount, columns):
-            group = []
-            for j in range(columns):
-                idx = i + j
-                if idx < slotCount:
-                    item = sortedSlots[idx]
-                    group.append((item["item"].name, str(item["count"])))
+        # Even when empty, show one empty row
+        if slotCount == 0:
+            rows = [cRow([])]
+        else:
+            rows = []
+            for i in range(0, slotCount, columns):
+                group = []
+                for j in range(columns):
+                    idx = i + j
+                    if idx < slotCount:
+                        item = sortedSlots[idx]
+                        group.append((item["item"].name, str(item["count"])))
+                rows.append(cRow(group))
 
-            rows.append(cRow(group))
-            
         output += "".join(rows)
 
         # Footer
-        tWidth = (cWidth + aWidth + 6) * columns + 1 # total width
+        tWidth = (cWidth + aWidth + 6) * columns + 1
 
         if columns == 1:
             output += f"{sl}{lh * ftWidth}{st}{lh * (cWidth + 2 - (ftWidth + 1))}{sb}{lh * (aWidth + 2)}{sr}\n"
@@ -172,11 +167,10 @@ class Inventory:
             output += f"{sl}{lh * ftWidth}{st}{lh * (cWidth + 2 - (ftWidth + 1))}{sb}{lh * (aWidth + 2)}{sb}"
             for _ in range(columns - 2):
                 output += f"{lh * (cWidth + 2)}{sb}{lh * (aWidth + 2)}{sb}"
-
             output += f"{lh * (cWidth + 2)}{sb}{lh * (aWidth + 2)}{sr}\n"
 
-        output += f"{lv} Total Items │ {(str(self.totalItems()) + "/" + str(self.stack * self.maxSlots)):>{tWidth - 18}} {lv}\n"
-        output += f"{lv} Stacks      │ {(str(len(self.slots)) + "/" + str(self.maxSlots)):>{tWidth - 18}} {lv}\n"
+        output += f"{lv} Total Items │ {(str(self.totalItems()) + '/' + str(self.stack * self.maxSlots)):>{tWidth - 18}} {lv}\n"
+        output += f"{lv} Stacks      │ {(str(len(self.slots)) + '/' + str(self.maxSlots)):>{tWidth - 18}} {lv}\n"
         money_str = self.owner.displayMoney() if self.owner else "N/A"
         output += f"{lv} Money       │ {money_str:>{tWidth - 19}} {lv}\n"
         output += f"{cbl}{lh * ftWidth}{sb}{lh * (tWidth - 16)}{cbr}\n"
@@ -200,7 +194,7 @@ class Player:
             print(log(f"Unable to mine '{material}' because it's not scannable!", LogLevel.WARNING))
             return
 
-        # Check ob Pickaxe-Level ausreicht
+        # Check if the mining level of the tool is sufficient
         if self.tool.miningLevel < block.miningLevel and self.tool.miningLevel != -1:
             print(log(f"Tool too weak to mine {block.ID}!", LogLevel.WARNING))
             return
@@ -213,7 +207,6 @@ class Player:
             drops = block.dropRates
             _min = drops.getRateFor(DropRateEnum.MIN)
             _max = drops.getRateFor(DropRateEnum.MAX)
-            #print(f"Drops for {block.ID}: {_min}x (min), {_max}x (max), rate: {drops.getRateFor(DropRateEnum.RATE)}")
 
             # Drop amount based on drop rates calculation
             while _min < _max:
@@ -233,6 +226,7 @@ class Player:
         totalTime = 0 if self.tool.miningLevel == -1 else block.miningTime * amount / self.tool.timeFac
         print(f"\nTool: {self.tool.name}\nMining: {block.ID} ({amount}x)\nTime: ~{totalTime:.2f}s\n")
 
+        # Simulate mining time
         time.sleep(totalTime)
         added = self.inventory.addItem(block.dropItem, total)
 
@@ -283,7 +277,6 @@ class Processor:
         print("\n╭────────────────────────────────────────┬─────────╮")
         colored = colorText(str(recipe.ID), '#A6C1EE')
         plain = stripColor(colored)
-        # Korrigiere die Ausrichtung für ANSI-Sequenzen
         padding = 38 + (len(colored) - len(plain))
         print(f"│ {colored:<{padding}} │ {str(amount):>6}x │")
         print("├───────────────────────┬────────────────┼─────────┤")
@@ -307,10 +300,10 @@ class Processor:
             print(log(f"Cannot process {amount}x {recipe.ID}. Only {possible} possible due to limited materials.\n", LogLevel.WARNING))
             return
 
-        # **Critical**: safe state of inventory (deepcopy of slots)
+        # **Critical**: Safe state of inventory (deepcopy of slots)
         backupSlots = copy.deepcopy(player.inventory.slots)
 
-        # remove inputs
+        # Remove inputs
         for i, n in recipe.inputs:
             if not player.inventory.removeItem(i, n * amount):
                 print(log(f"Failed to remove {n * amount}x {i.name} from inventory. Rolling back.", LogLevel.WARNING))
@@ -318,16 +311,16 @@ class Processor:
                 player.inventory.slots = backupSlots
                 return
 
-        # processing time
+        # Processing time
         totalTime = 0 if player.tool.miningLevel == -1 else recipe.time * amount
         print(f"Processing {amount}x {recipe.ID}... Estimated time: ~{totalTime:.2f}s")
         time.sleep(totalTime)
 
-        # add outputs to inventory
+        # Add outputs to inventory
         for i, n in recipe.outputs:
             if not player.inventory.addItem(i, n * amount):
                 print(log(f"No room in inventory for the output {i.name}! Rolling back inputs.", LogLevel.WARNING))
-                # restore from backup: rollback
+                # Restore from backup: rollback
                 player.inventory.slots = backupSlots
                 return
 
@@ -357,7 +350,7 @@ class Shop:
         print("│ Needed Items          │ Available      │ Missing │")
         print("├───────────────────────┼────────────────┼─────────┤")
         
-        allAvailable = True  # Flag für späteren Check
+        allAvailable = True  # Flag for checking if all required items are available
         for item, required in newTool.costs:
             available = player.inventory.totalItemsOf(item)
             missing = max(0, required - available)
@@ -371,9 +364,8 @@ class Shop:
             print(log("Upgrading canceled due to insufficient upgrade ressource supply.", LogLevel.WARNING))
             return
 
-        # **Critical**: safe state of inventory (deepcopy of slots)
+        # **Critical**: Safe state of inventory (deepcopy of slots)
         backupSlots = copy.deepcopy(player.inventory.slots)
-        #print(log("Inventory backed up.", LogLevel.TIP))
 
         # Remove materials from inventory
         for item, quantity in newTool.costs:
@@ -508,12 +500,6 @@ def printRecipe(recipe: Recipe):
 # #FBC2EB -> #A6C1EE
 # #5EA4FF -> #A7E06F
 
-#   _____               _            __  __
-# / _  / __ _ _ __ ___(_) __ _ _ __ \\ \\/ /
-# \\// / / _` | '__/ __| |/ _` | '_ \\ \\  /
-#  / //\\ (_| | |  \__ \\ | (_| | | | |/  \\
-# /____/\\__,_|_|  |___/_|\\__,_|_| |_/_/\\_\\
-
 asciiArtLogo = """
 
 ███████╗░█████╗░██████╗░░██████╗██╗░█████╗░███╗░░██╗░██╗░░██╗
@@ -542,10 +528,12 @@ YMMMU@^
  ^^
 """
 
+# Convert hex color to RGB tuple
 def hexToRGB(hexColor: str) -> tuple[int, int, int]:
     hexColor = hexColor.lstrip('#')
     return tuple(int(hexColor[i:i + 2], 16) for i in (0, 2, 4))
 
+# Interpolate multiple colors based on a factor (0.0 to 1.0)
 def interpolateMultiColor(colors: list[tuple[int, int, int]], factor: float) -> tuple[int, int, int]:
     if factor <= 0:
         return colors[0]
@@ -565,6 +553,7 @@ def interpolateMultiColor(colors: list[tuple[int, int, int]], factor: float) -> 
         for cs, ce in zip(color_start, color_end)
     )
 
+# Gradient text function
 def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str:
     if len(hexColors) < 2:
         raise ValueError("At least two colors are required.")
@@ -606,6 +595,7 @@ def gradientText(text: str, hexColors: tuple[str], direction: str = "lr") -> str
     else:
         raise ValueError("Direction must be one of: 'lr', 'rl', 'td', 'bu'")
 
+# Color text function
 def colorText(text: str, hexColor: str) -> str:
     rgb = hexToRGB(hexColor)
     return f"\033[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m{text}\033[0m"
@@ -733,14 +723,34 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
     commandCompleter = createCompleter(player)
     session = PromptSession(
         history=history,
-        completer=commandCompleter,
-        lexer=PygmentsLexer(PythonLexer)
+        completer=commandCompleter
     )
 
     # Main game loop with commands
     while True:
+        attempts = 0
         try:
-            command = session.prompt("What do you want to do, pioneer? # ").strip().lower()
+            # Random speech lines for the player
+            speechLines = [
+                "What do you want to do?",
+                "What's your next step, pioneer?",
+                "How can I assist you?",
+                "Ready for the next task?",
+                "What is your command, pioneer?",
+                "The frontier awaits your decision.",
+                "Command received... awaiting further orders.",
+                "What's our next move, trailblazer?",
+                "All systems ready. What's your plan?",
+                "Another day, another mission. What's first?",
+                "Standing by for your instructions.",
+                "What's the next challenge?",
+                "Your journey continues. What's next?",
+                "The unknown calls. How do we proceed?",
+                "You lead the way! What now?",
+                "The universe is vast, and so are your choices.",
+            ]
+
+            command = session.prompt(f"{"What are you waiting for? Orders, Pioneer!" if attempts == 0 else random.choice(speechLines)} # ").strip()
 
             parts = command.split()
 
@@ -752,7 +762,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
             elif command.startswith("mine"):
                 if len(parts) in range(2, 4): # 2-3 parts
                     material = parts[1]
-                    anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
+                    anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
                     player.mine(material, anzahl)
                 else:
                     print(log("Pioneer! Provide a material, e.g. 'mine coal' or with a count 'mine coal 5'.", LogLevel.WARNING))
@@ -760,32 +770,33 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
                 print(player.inventory)
             elif command == "status":
                 print(f"\nName: {player.name}")
-                print(f"Tool: {player.tool}")
                 print(f"Tool: {player.tool.name} (Level {player.tool.miningLevel})")
                 print("Inventory:", player.inventory, "\n")
             elif command.startswith("process"):
                 if len(parts) in range(2, 4):
                     recipe = Recipe.get(parts[1])
-                    anzahl = None
+                    amount = 1
 
                     if len(parts) == 3:
                         if parts[2] == "all":
-                            anzahl = "all"
+                            amount = "all"
                         elif parts[2].isdigit():
-                            anzahl = int(parts[2])
+                            amount = int(parts[2])
+                        elif not parts[2]:
+                            amount = 1
                         else:
                             print(log(f"Invalid amount: '{parts[2]}'. Use a number or 'all'.", LogLevel.WARNING))
                             continue
 
                     if recipe:
-                        processor.process(player, recipe, anzahl)
+                        processor.process(player, recipe, amount)
                     else:
                         print(log(f"No recipe found with name '{parts[1]}'.", LogLevel.WARNING))
                 else:
-                    print(log("Usage: process <recipe> [amount|all]", LogLevel.WARNING))
+                    print(log("Usage: process <recipe> [amount|all]?1", LogLevel.WARNING))
             elif command.startswith("upgrade"):
                 if len(parts) != 2:
-                    print(log("Usage: upgrade <tool>", LogLevel.WARNING))
+                    print(log("Usage: upgrade <tool-id>", LogLevel.WARNING))
                     continue
                 shop.upgrade(player, parts[1])
             elif command.startswith("recipe"):
@@ -799,7 +810,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
                 else:
                     print(log("Usage: recipe <name>", LogLevel.WARNING))
             else:
-                print(log("Pioneer! We don't know this one. Please type 'help' to see the available commands.", LogLevel.ERROR))
+                print(log("Pioneer! We don't know this one. Type 'help' for an overview!", LogLevel.ERROR))
 
         # Handle exceptions where Ctrl+C is pressed
         except KeyboardInterrupt:
