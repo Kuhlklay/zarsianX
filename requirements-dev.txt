@@ -1,1 +1,3 @@
 ruff
+prompt_toolkit
+pygments

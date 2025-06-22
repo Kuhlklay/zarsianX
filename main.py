@@ -4,21 +4,21 @@ import random
 import string
 import copy
 import re
+from typing import Union
 from enum import Enum
 from registry import Item, Tool, Block, Recipe, DropRateEnum
 
-def installPackages():
-    try:
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.history import InMemoryHistory
-        from prompt_toolkit.completion import WordCompleter, NestedCompleter
-    except ImportError:
-        print("📦 Required packages not found. Execute 'install-linux.sh' (linux) or 'install-windows.bat' (windows) to install them.")
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.completion import Completer, Completion, NestedCompleter
+from prompt_toolkit.lexers import PygmentsLexer
+from pygments.lexers.python import PythonLexer
 
 class LogLevel(Enum):
     ERROR = {"color": "#FF6961", "symbol": "⊘"}
     WARNING = {"color": "#FFB561", "symbol": "⊜"}
     TIP = {"color": "#6A7EAC", "symbol": "⊙"}
+    SUCCESS = {"color": "#A7E06F", "symbol": "⊛"}
 
 def log(message: str, level: LogLevel) -> str:
     color = level.value["color"]
@@ -186,11 +186,11 @@ class Player:
     def __init__(self, name):
         self.name = name
         self.inventory = Inventory(owner=self)
-        if name == "test":
-            self.tool = Tool.get("test_tool")  # Start with a test tool
-        else:
-            self.tool = Tool.get("wooden_pickaxe") # Start with a wooden pickaxe
+        self.tool = Tool.get("wooden_pickaxe")     # Start with a wooden pickaxe
         self.money = 0
+
+        if name == "testable":  # Special test player
+            self.tool = Tool.get("test_tool")  # Start with a test tool
 
     def mine(self, material: str, amount: int = 1):
         block = Block.get(material)
@@ -200,7 +200,7 @@ class Player:
             return
 
         # Check ob Pickaxe-Level ausreicht
-        if self.tool.miningLevel < block.miningLevel:
+        if self.tool.miningLevel < block.miningLevel and self.tool.miningLevel != -1:
             print(log(f"Tool too weak to mine {block.ID}!", LogLevel.WARNING))
             return
         
@@ -228,7 +228,7 @@ class Player:
             return
 
         # Mining-Zeit basierend auf Material und Menge
-        totalTime = block.miningTime * amount / self.tool.timeFac
+        totalTime = 0 if self.tool.miningLevel == -1 else block.miningTime * amount / self.tool.timeFac
         print(f"\nTool: {self.tool.name}\nMining: {block.ID} ({amount}x)\nTime: ~{totalTime:.2f}s\n")
 
         time.sleep(totalTime)
@@ -279,26 +279,24 @@ def printProcessingInfo(player: Player, recipe: Recipe, amount: int):
     print("╰──────────┴───────────────────────────────────────╯\n")
 
 class Processor:
-    def process(self, player: Player, recipe: Recipe, amount: int = 1):
+    def process(self, player: Player, recipe: Recipe, amount: Union[int, str] = 1):
         if not recipe:
             print(log(f"No recipe found for {recipe}.", LogLevel.WARNING))
             return
 
-        # amount validation
+        possible = float('inf')
+        for i, n in recipe.inputs:
+            available = player.inventory.totalItemsOf(i)
+            possible = min(possible, available // n)
+
+        if amount == "all":
+            amount = possible
+
         if amount is None:
             amount = 1
         if amount < 1:
             print(log("Amount must be at least 1.", LogLevel.WARNING))
             return
-
-        # 1. Prüfe maximal mögliche Ausführung
-        possible = float('inf')
-        for i, n in recipe.inputs:
-            available = player.inventory.totalItemsOf(i)
-            #print(f"Checking input {i.name}: {available} available, {n} required per unit.")
-            #if available < n:
-            #    print(log(f"Not enough {i.name} for processing.", LogLevel.WARNING))
-            possible = min(possible, available // n)
 
         # print the recipe processing info
         printProcessingInfo(player, recipe, amount)
@@ -323,8 +321,8 @@ class Processor:
                 return
 
         # processing time
-        totalTime = 0 if player.name == "test" else recipe.time * amount
-        print(f"Processing {amount}x {recipe.ID}... Estimated time: ~{totalTime}s")
+        totalTime = 0 if player.tool.miningLevel == -1 else recipe.time * amount
+        print(f"Processing {amount}x {recipe.ID}... Estimated time: ~{totalTime:.2f}s")
         time.sleep(totalTime)
 
         # add outputs to inventory
@@ -335,21 +333,64 @@ class Processor:
                 player.inventory.slots = backupSlots
                 return
 
-        print(f"Successfully processed {amount}x recipe '{recipe.ID}'!")
+        print(log(f"Successfully processed {amount}x recipe '{recipe.ID}'!\n", LogLevel.SUCCESS))
 
-class Bizman: # short for Businessman
-    # functions for upgrading the pickaxe to same or upper levels costing different ressources
+class Shop:
+    def upgrade(self, player: Player, tool: str):
+        if not tool or not isinstance(tool, str):
+            print(log(f"Invalid tool name: {tool}.", LogLevel.WARNING))
+            return
 
-    def upgrade(self, player: Player):
-        if player.pickaxe.mingLevel == 0:
-            if player.inventory.has_item("Hartkohle", 2):
-                player.inventory.remove_item("Hartkohle", 2)
-                player.pickaxe.upgrade()
-                print("Anton hat die Pickaxe auf Stone aufgewertet.")
-            else:
-                print("Nicht genügend Hartkohle, um die Pickaxe aufzuwerten.")
-        else:
-            print("Die Pickaxe ist bereits aufgewertet oder ein Upgrade ist nicht verfügbar.")
+        newTool = Tool.get(tool)
+        if not newTool:
+            print(log(f"No tool found for '{tool}'.", LogLevel.WARNING))
+            return
+
+        if newTool.miningLevel <= player.tool.miningLevel:
+            print(log(f"Your {player.tool.name} is already at or above the level of {newTool.name}.", LogLevel.WARNING))
+            return
+
+        # === Schöne Tabelle mit benötigten Items ===
+        print("\n╭────────────────────────────────────────┬─────────╮")
+        colored = colorText(str(newTool.name), '#A6C1EE')
+        plain = stripColor(colored)
+        padding = 38 + (len(colored) - len(plain))
+        print(f"│ {colored:<{padding}} │ Upgrade │")
+        print("├───────────────────────┬────────────────┼─────────┤")
+        print("│ Needed Items          │ Available      │ Missing │")
+        print("├───────────────────────┼────────────────┼─────────┤")
+        
+        allAvailable = True  # Flag für späteren Check
+        for item, required in newTool.costs:
+            available = player.inventory.totalItemsOf(item)
+            missing = max(0, required - available)
+            print(f"│ {item.name:<21} │ {(str(available) + '/' + str(required)):<14} │ {missing:>6}x │")
+            if missing > 0:
+                allAvailable = False
+        
+        print("╰───────────────────────┴────────────────┴─────────╯\n")
+
+        # Wenn etwas fehlt, Upgrade abbrechen
+        if not allAvailable:
+            print(log("Upgrading canceled due to insufficient upgrade ressource supply.", LogLevel.WARNING))
+            return
+
+        # Backup erstellen
+        backupSlots = copy.deepcopy(player.inventory.slots)
+        #print(log("Inventory backed up.", LogLevel.TIP))
+
+        # Materialien entfernen
+        for item, quantity in newTool.costs:
+            if not player.inventory.removeItem(item, quantity):
+                print(log(f"Failed to remove {quantity}x {item.name}. Rolling back.", LogLevel.WARNING))
+                player.inventory.slots = backupSlots
+                print(log("Inventory restored from backup.", LogLevel.TIP))
+                return
+            print(log(f"Removed {quantity}x {item.name}.", LogLevel.TIP))
+
+        # Upgrade durchführen
+        player.tool = newTool
+        print(log(f"Successfully upgraded to {newTool.name}!", LogLevel.SUCCESS))
 
 # -----------------------------
 # Helper functions
@@ -371,16 +412,14 @@ def wordWrap(text: str, n: int = 50) -> list[str]:
         lines.append(current)
     return lines
 
-#dynamic way to print all the commands with accurate spacing to the longest command
+# dynamic way to print all the commands with accurate spacing to the longest command
 commands = [
-    ("mine", [(f"<material> <amount {{1..{Inventory.stack * 4}}}>?1", "Mine a material of additional count (e.g. '... coal 5')")]),
+    ("mine", [(f"<material> [<amount {{1..{Inventory.stack * 4}}}>?1|all]", "Mine a material of additional count (e.g. '... coal 5')")]),
     ("inventory", [(None, "Show your current inventory")]),
     ("status", [(None, "Show your status (name, tool, inventory)")]),
     ("process", [("<recipe> <amount>?1", "Process material according to the recipe (e.g. '... iron_ingot 2')")]),
-    ("recipe", [
-        ("search <term>", "Search for a recipe name"),
-        ("get|show <name>", "Get a recipe by name")
-    ]),
+    ("recipe", [("<name>", "Get a recipe by name")]),
+    ("upgrade", [("<tool>", "Upgrade tool to higher grade")]),
     #("upgrade", "Let Upgrader upgrade your pickaxe (wood) to stone with 2 hard coal."),
     #("antiquity", "Let Bizman create an antiquity."),
     ("help", [(None, "Show this help menu")]),
@@ -410,6 +449,7 @@ def printHelp():
     maxArgLength = max(len(arg[0]) for cmd in cmds for arg in cmd[1])
     maxDescLength = 50  # Max length for description
 
+    print()
     print(log("'?' means optional value with default value e.g. 4", LogLevel.TIP))
     print(log("'|' means or / option", LogLevel.TIP))
 
@@ -583,37 +623,15 @@ def obfuscateText(text: str) -> str:
 # print(gradientText("Zars\nhallo\nP14a", ("#FBC2EB", "#A6C1EE"), "bu")) # !testing
 # print(colorText("Zars\nhallo\nP14a", "#FBC2EB")) # !testing
 
-def getUnlockedCommands():
-    return {
-        # takes all ressources available
-        'mine': { block.ID: None for block in Block.all() },
-        'inventory': None,
-        'recipe': {
-            'search': None,
-            'get': { recipe.ID: None for recipe in Recipe.all() },
-            'show': { recipe.ID: None for recipe in Recipe.all() }
-        },
-        'status': None,
-        'process': { recipe.ID: None for recipe in Recipe.all() },
-        'help': None,
-        'exit': None,
-    }
-
 # -----------------------------
 # Main Game Loop
 # -----------------------------
 def main():
-    installPackages()
-
-    from prompt_toolkit import PromptSession
-    from prompt_toolkit.history import InMemoryHistory
-    from prompt_toolkit.completion import NestedCompleter
-
     print(gradientText(asciiArtLogo, ("#FBC2EB", "#A6C1EE"), "lr"))
     name = input("\nWhat's your name again? # ")
     player = Player(name)
     processor = Processor()
-    #bizman = Bizman()
+    shop = Shop()
 
     print(gradientText(asciiArtPlanet, ("#E4BDD4", "#4839A1"), "td"))
     print(f"""
@@ -640,10 +658,84 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
     def handleExit():
         print(f"\nMemory encrypted!\nPlanet {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'))} is waiting for you to return.\n\nData(Player('{player.name}')): [\n\t{obfuscateText('ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi')}\n]\n")
 
-    command_completer = NestedCompleter.from_nested_dict(getUnlockedCommands())
+    class FuzzyCompleter(Completer):
+        def __init__(self, completionsDict):
+            self.completions_dict = {
+                tuple(k.split()): v for k, v in completionsDict.items()
+            }
+
+        def get_completions(self, document, complete_event):
+            text = document.text_before_cursor.lower()
+            parts = text.split()
+
+            # Find matching command paths
+            for cmd_path, completions in self.completions_dict.items():
+                # Check if the input starts with the command path
+                if len(parts) >= len(cmd_path) and parts[:len(cmd_path)] == list(cmd_path):
+                    search_term = parts[len(cmd_path)] if len(parts) > len(cmd_path) else ''
+                    # Find completions containing the search term
+                    matches = [
+                        item for item in completions
+                        if search_term.lower() in item.lower()
+                    ]
+                    # Sort by similarity
+                    matches = difflib.get_close_matches(search_term, matches, n=10, cutoff=0.0)
+                    for match in matches:
+                        yield Completion(
+                            match,
+                            start_position=-len(search_term) if search_term else 0,
+                            display=match
+                        )
+
+    def getUnlockedCommands(player: Player):
+        currentTool = player.tool
+        currentLevel = currentTool.miningLevel if currentTool else 0
+
+        return {
+            'mine': { block.ID: None for block in Block.all() },
+            'inventory': None,
+            'recipe': None,
+            'status': None,
+            'upgrade': {
+                tool.ID: None
+                for tool in Tool.all()
+                if tool.miningLevel >= currentLevel and tool != currentTool and tool.ID not in ["test_tool"]
+            },
+            'process': { recipe.ID: None for recipe in Recipe.all() },
+            'help': None,
+            'exit': None
+        }
+
+    def createCompleter(player):
+        baseCommands = getUnlockedCommands(player)
+        # Initialize fuzzy completer with completion lists for specific commands
+        fuzzyCompletions = {
+            'recipe': { recipe.ID: None for recipe in Recipe.all() }
+            # Add more command paths as needed, e.g., 'mine': list(Block.Registry.keys())
+        }
+        fuzzyCompleter = FuzzyCompleter(fuzzyCompletions)
+        nestedCompleter = NestedCompleter.from_nested_dict(baseCommands)
+
+        class CombinedCompleter(Completer):
+            def get_completions(self, document, complete_event):
+                text = document.text_before_cursor.lower()
+                # Use fuzzy completer for registered command paths
+                for cmd_path in fuzzyCompletions:
+                    if text.startswith(cmd_path):
+                        yield from fuzzyCompleter.get_completions(document, complete_event)
+                        return
+                # Fallback to nested completer for other commands
+                yield from nestedCompleter.get_completions(document, complete_event)
+            
+        return CombinedCompleter()
 
     history = InMemoryHistory()
-    session = PromptSession(history=history, completer=command_completer)
+    commandCompleter = createCompleter(player)
+    session = PromptSession(
+        history=history,
+        completer=commandCompleter,
+        lexer=PygmentsLexer(PythonLexer)
+    )
 
     while True:
         try:
@@ -657,9 +749,9 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
             elif command == "help":
                 printHelp()
             elif command.startswith("mine"):
-                if len(parts) >= 2:
+                if len(parts) in range(2, 4): # 2-3 parts
                     material = parts[1]
-                    anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+                    anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
                     player.mine(material, anzahl)
                 else:
                     print(log("Pioneer! Provide a material, e.g. 'mine coal' or with a count 'mine coal 5'.", LogLevel.WARNING))
@@ -667,35 +759,36 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
                 print(player.inventory)
             elif command == "status":
                 print(f"\nName: {player.name}")
+                print(f"Tool: {player.tool}")
                 print(f"Tool: {player.tool.name} (Level {player.tool.miningLevel})")
                 print("Inventory:", player.inventory, "\n")
             elif command.startswith("process"):
-                if len(parts) >= 2:
+                if len(parts) in range(2, 4):
                     recipe = Recipe.get(parts[1])
-                    anzahl = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None
-                    processor.process(player, recipe, anzahl)
-                else:
-                    print(log("Pioneer! Provide a recipe name, e.g. 'process iron' or with a count 'process iron 5'.", LogLevel.WARNING))
-            #elif command == "upgrade":
-            #    anton.upgradeTool(player)
-            #elif command == "antiquity":
-            #    vincent.createAntiquity(player)
-            elif command.startswith("recipe"):
-                if len(parts) >= 3 and parts[1] == "search":
-                    searchTerm = " ".join(parts[2:])
-                    allIDs = list(Recipe.Registry.keys())
-                    # Fuzzy search mit difflib
-                    matches = difflib.get_close_matches(searchTerm, allIDs, n=10, cutoff=0.3)
-                    if matches:
-                        maxLength = max(len(match) for match in matches)
-                        print("\n╭" + "─" * (maxLength + 4) + "╮")
-                        for rid in matches:
-                            print(f"│ ∷ {rid:<{maxLength}} │")
-                        print("╰" + "─" * (maxLength + 4) + "╯\n")
+                    anzahl = None
+
+                    if len(parts) == 3:
+                        if parts[2] == "all":
+                            anzahl = "all"
+                        elif parts[2].isdigit():
+                            anzahl = int(parts[2])
+                        else:
+                            print(log(f"Invalid amount: '{parts[2]}'. Use a number or 'all'.", LogLevel.WARNING))
+                            continue
+
+                    if recipe:
+                        processor.process(player, recipe, anzahl)
                     else:
-                        print()
-                        print(log("No recipes found matching your search.\n", LogLevel.WARNING))
-                elif len(parts) >= 3 and parts[1] in ["get", "show"]:
+                        print(log(f"No recipe found with name '{parts[1]}'.", LogLevel.WARNING))
+                else:
+                    print(log("Usage: process <recipe> [amount|all]", LogLevel.WARNING))
+            elif command.startswith("upgrade"):
+                if len(parts) != 2:
+                    print(log("Usage: upgrade <tool>", LogLevel.WARNING))
+                    continue
+                shop.upgrade(player, parts[1])
+            elif command.startswith("recipe"):
+                if len(parts) == 2:
                     recipeName = parts[2]
                     recipe = Recipe.get(recipeName)
                     if recipe:
@@ -703,7 +796,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
                     else:
                         print(log(f"No recipe found with name '{recipeName}'.", LogLevel.WARNING))
                 else:
-                    print(log("Usage: recipe search <name> or recipe get <name>", LogLevel.WARNING))
+                    print(log("Usage: recipe <name>", LogLevel.WARNING))
             else:
                 print(log("Pioneer! We don't know this one. Please type 'help' to see the available commands.", LogLevel.ERROR))
 

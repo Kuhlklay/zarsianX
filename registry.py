@@ -40,6 +40,7 @@ class Tool:
         self.name = name
         self.miningLevel = 0
         self.timeFac = 1.0
+        self.costs = []
 
         if not isinstance(ID, str):
             raise TypeError(f"Tool ID must be a string: {ID}")
@@ -75,13 +76,13 @@ class ToolBuilder:
         self.tool = tool
 
     def costs(self, items: list[Union[Item, tuple[Item, int]]]):
-        normalized = []
-        for i in items:
-            if isinstance(i, tuple):
-                normalized.append(i)
+        # Normalize costs to list of (Item, quantity) tuples
+        self.tool.costs = []
+        for item in items:
+            if isinstance(item, tuple):
+                self.tool.costs.append(item)  # Already (Item, quantity)
             else:
-                normalized.append((i, 1))
-        self.recipe.inputs = normalized
+                self.tool.costs.append((item, 1))  # Single item, quantity 1
         return self
 
     def level(self, miningLevel: int):
@@ -318,14 +319,16 @@ Item.register("cobbled_stone", "Cobbled Stone")
 Item.register("coal", "Coal")
 Item.register("raw_iron", "Raw Iron")
 Item.register("raw_copper", "Raw Copper")
+Item.register("raw_zinc", "Raw Zinc")
 Item.register("raw_gold", "Raw Gold")
 Item.register("raw_aluminium", "Raw Aluminium")
 Item.register("raw_veridium", "Raw Veridium")
 Item.register("raw_titanium", "Raw Titanium")
 Item.register("raw_zarsium", "Raw Zarsium")
 
-Item.register("copper_ingot", "Copper Ingot")
 Item.register("iron_ingot", "Iron Ingot")
+Item.register("copper_ingot", "Copper Ingot")
+Item.register("zinc_ingot", "Zinc Ingot")
 Item.register("brass_ingot", "Brass Ingot")
 Item.register("gold_ingot", "Gold Ingot")
 Item.register("aluminium_ingot", "Aluminium Ingot")
@@ -334,20 +337,23 @@ Item.register("titanium_ingot", "Titanium Ingot")
 Item.register("zarsium_ingot", "Zarsium Ingot")
 Item.register("steel_ingot", "Steel Ingot")
 
-#Tool.register(ID: str, name: str).level(lvl: int).timeFac(tf: float)
+#Tool.register(ID: str, name: str).level(lvl: int).timeFac(tf: float).costs(items: list[Union[Item, tuple[Item, int]]])
 
-Tool.register("test_tool", "Test Tool").level(999999).timeFac(999999.0)
+Tool.register("test_tool", "Test Tool").level(-1).timeFac(-1.0)
 
 Tool.register("wooden_pickaxe", "Wooden Pickaxe").level(0).timeFac(0.5)
-Tool.register("stone_pickaxe", "Stone Pickaxe").level(1).timeFac(1.5)
-Tool.register("iron_pickaxe", "Iron Pickaxe").level(2).timeFac(1.0)
+Tool.register("stone_pickaxe", "Stone Pickaxe").level(1).timeFac(1.5).costs([(Item.COBBLED_STONE, 12), Item.IRON_INGOT])
+Tool.register("iron_pickaxe", "Iron Pickaxe").level(2).timeFac(1.0).costs([(Item.IRON_INGOT, 12)])
+Tool.register("aluminium_pickaxe", "Aluminum Pickaxe").level(3).timeFac(1.2).costs([(Item.ALUMINIUM_INGOT, 12), (Item.STEEL_INGOT, 2), Item.GOLD_INGOT])
+Tool.register("titanium_drill", "Titanium Drill").level(5).timeFac(1.5).costs([(Item.TITANIUM_INGOT, 24), (Item.BRASS_INGOT, 8), (Item.GOLD_INGOT, 4), (Item.STEEL_INGOT, 4)])
 
 #Block.register(ID: str).drops(item: Item).level(lvl: int).time(t: int).rates(_min: int, _max: int, rate: float)
 
 Block.register("stone").drops(Item.COBBLED_STONE).level(0).time(1.5).rates(1, 1, 1.0)
 Block.register("coal").drops(Item.COAL).level(0).time(1).rates(1, 3, 0.2)
 Block.register("iron").drops(Item.RAW_IRON).level(0).time(1.2).rates(1, 2, 0.07)
-Block.register("copper").drops(Item.RAW_COPPER).level(0).time(1.2).rates(1, 2, 0.07)
+Block.register("copper").drops(Item.RAW_COPPER).level(0).time(1.2).rates(1, 2, 0.4)
+Block.register("zinc").drops(Item.RAW_ZINC).level(0).time(1.1).rates(1, 2, 0.3)
 Block.register("gold").drops(Item.RAW_GOLD).level(1).time(1.5).rates(1, 2, 0.07)
 Block.register("aluminium").drops(Item.RAW_ALUMINIUM).level(1).time(1.8).rates(1, 2, 0.07)
 Block.register("veridium").drops(Item.RAW_VERIDIUM).level(2).time(2.0).rates(1, 2, 0.07)
@@ -357,7 +363,7 @@ Block.register("titanium").drops(Item.RAW_TITANIUM).level(1).time(2.5).rates(1, 
 
 Recipe.register("iron_ingot").inputs([Item.RAW_IRON]).outputs([Item.IRON_INGOT]).time(1.2)
 Recipe.register("copper_ingot").inputs([Item.RAW_COPPER]).outputs([Item.COPPER_INGOT]).time(1.2)
-Recipe.register("brass_ingot").inputs([Item.IRON_INGOT, Item.COPPER_INGOT]).outputs([Item.BRASS_INGOT]).time(1.4)
+Recipe.register("brass_ingot").inputs([Item.ZINC_INGOT, (Item.COPPER_INGOT, 3)]).outputs([(Item.BRASS_INGOT, 4)]).time(1.4)
 Recipe.register("gold_ingot").inputs([Item.RAW_GOLD]).outputs([Item.GOLD_INGOT]).time(1.5)
 Recipe.register("aluminium_ingot").inputs([Item.RAW_ALUMINIUM]).outputs([Item.ALUMINIUM_INGOT]).time(1.8)
 Recipe.register("steel_ingot").inputs([(Item.IRON_INGOT, 2), Item.COAL]).outputs([Item.STEEL_INGOT]).time(2)
