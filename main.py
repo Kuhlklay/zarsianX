@@ -26,20 +26,20 @@ def log(message: str, level: LogLevel) -> str:
     return f"{colorText(symbol + " " + message, color)}"
 
 def stripColor(text: str) -> str:
-    # Entfernt ANSI-Escape-Sequenzen aus dem Text für die Längenberechnung
+    # Remove ANSI escape sequences for colors
     ansi_pattern = re.compile(r'\033\[[0-9;]*m')
     return ansi_pattern.sub('', text)
 
 class Inventory:
     stack: int = 64
 
-    def __init__(self, owner=None):
+    def __init__(self, owner = None):
         self.owner = owner
         # Every slot is a Dictionary with "item" and "count"
         self.slots = []
-        self.maxSlots = 32
+        self.maxSlots: int = 32
 
-    def addItem(self, item: Item, quantity=1):
+    def addItem(self, item: Item, quantity: int = 1):
         # Try to use existing stacks to fill up
         for slot in self.slots:
             if slot["item"] == item and slot["count"] < self.stack:
@@ -60,7 +60,7 @@ class Inventory:
                 return False
         return True
 
-    def removeItem(self, item: Item, quantity=1):
+    def removeItem(self, item: Item, quantity: int = 1):
         removed: int = 0
         for slot in self.slots:
             if slot["item"] == item:
@@ -90,12 +90,12 @@ class Inventory:
     def __str__(self):
         if not self.slots:
             print()
-            return log("Inventory is empty!\n", LogLevel.WARNING)
+            print(log("Inventory is empty!\n", LogLevel.WARNING))
 
         sortedSlots = sorted(self.slots, key=lambda slot: slot["item"].name.lower())
         slotCount = len(sortedSlots)
 
-        # Spaltenanzahl festlegen
+        # Columns calculation based on slot count
         if slotCount <= 8:
             columns = 1
         elif slotCount <= 26:
@@ -107,7 +107,7 @@ class Inventory:
         aWidth = 6   # amount width
         ftWidth = 13 # footer titles width
 
-        # Rahmenzeichen
+        # Table symbols
         ctl = "╭"
         ctr = "╮"
         cbl = "╰"
@@ -120,7 +120,8 @@ class Inventory:
         lv = "│"
         lh = "─"
 
-        # Rahmen-Zeilen bauen
+        # Header
+        # Row formatting functions for table building
         def bRow(left, mid, right):
             parts = []
             for _ in range(columns):
@@ -146,7 +147,7 @@ class Inventory:
         output += hRow()
         output += bRow(sl, sm, sr)
 
-        # Slots formatieren
+        # Slots filling
         rows = []
         for i in range(0, slotCount, columns):
             group = []
@@ -160,7 +161,7 @@ class Inventory:
             
         output += "".join(rows)
 
-        # Fußzeile
+        # Footer
         tWidth = (cWidth + aWidth + 6) * columns + 1 # total width
 
         if columns == 1:
@@ -186,7 +187,7 @@ class Player:
     def __init__(self, name):
         self.name = name
         self.inventory = Inventory(owner=self)
-        self.tool = Tool.get("wooden_pickaxe")     # Start with a wooden pickaxe
+        self.tool = Tool.get("wooden_pickaxe")  # Start with a wooden pickaxe
         self.money = 0
 
         if name == "testable":  # Special test player
@@ -213,7 +214,8 @@ class Player:
             _min = drops.getRateFor(DropRateEnum.MIN)
             _max = drops.getRateFor(DropRateEnum.MAX)
             #print(f"Drops for {block.ID}: {_min}x (min), {_max}x (max), rate: {drops.getRateFor(DropRateEnum.RATE)}")
-            # Berechne zusätzlichen Drop basierend auf der Rate
+
+            # Drop amount based on drop rates calculation
             while _min < _max:
                 if random.random() <= drops.getRateFor(DropRateEnum.RATE):
                     _min += 1
@@ -221,13 +223,13 @@ class Player:
                     break
             total += _min
 
-        # Verfügbare Inventar-Kapazität prüfen
+        # Testing available space in inventory
         possible = (self.inventory.maxSlots * self.inventory.stack) - self.inventory.totalItems()
         if possible <= total:
             print(log("Inventory is full!", LogLevel.WARNING))
             return
 
-        # Mining-Zeit basierend auf Material und Menge
+        # Mining time calculation
         totalTime = 0 if self.tool.miningLevel == -1 else block.miningTime * amount / self.tool.timeFac
         print(f"\nTool: {self.tool.name}\nMining: {block.ID} ({amount}x)\nTime: ~{totalTime:.2f}s\n")
 
@@ -257,27 +259,6 @@ class Player:
     def displayMoney(self):
         return f"{self.money}チ (Chi)"
 
-def printProcessingInfo(player: Player, recipe: Recipe, amount: int):
-    possible = float('inf')
-    print("\n╭────────────────────────────────────────┬─────────╮")
-    colored = colorText(str(recipe.ID), '#A6C1EE')
-    plain = stripColor(colored)
-    # Korrigiere die Ausrichtung für ANSI-Sequenzen
-    padding = 38 + (len(colored) - len(plain))
-    print(f"│ {colored:<{padding}} │ {str(amount):>6}x │")
-    print("├───────────────────────┬────────────────┼─────────┤")
-    print("│ Needed Items          │ Available      │ Missing │")
-    print("├───────────────────────┼────────────────┼─────────┤")
-    for item, n in recipe.inputs:
-        required = n * amount
-        available = player.inventory.totalItemsOf(item)
-        possible = min(possible, available // n)
-        missing = max(0, required - available)
-        print(f"│ {item.name:<21} │ {(str(available) + '/' + str(required)):<14} │ {missing:>6}x │")
-    print("├──────────┬────────────┴────────────────┴─────────┤")
-    print(f"│ Possible │ {possible:>36}x │")
-    print("╰──────────┴───────────────────────────────────────╯\n")
-
 class Processor:
     def process(self, player: Player, recipe: Recipe, amount: Union[int, str] = 1):
         if not recipe:
@@ -298,8 +279,25 @@ class Processor:
             print(log("Amount must be at least 1.", LogLevel.WARNING))
             return
 
-        # print the recipe processing info
-        printProcessingInfo(player, recipe, amount)
+        possible = float('inf')
+        print("\n╭────────────────────────────────────────┬─────────╮")
+        colored = colorText(str(recipe.ID), '#A6C1EE')
+        plain = stripColor(colored)
+        # Korrigiere die Ausrichtung für ANSI-Sequenzen
+        padding = 38 + (len(colored) - len(plain))
+        print(f"│ {colored:<{padding}} │ {str(amount):>6}x │")
+        print("├───────────────────────┬────────────────┼─────────┤")
+        print("│ Needed Items          │ Available      │ Missing │")
+        print("├───────────────────────┼────────────────┼─────────┤")
+        for item, n in recipe.inputs:
+            required = n * amount
+            available = player.inventory.totalItemsOf(item)
+            possible = min(possible, available // n)
+            missing = max(0, required - available)
+            print(f"│ {item.name:<21} │ {(str(available) + '/' + str(required)):<14} │ {missing:>6}x │")
+        print("├──────────┬────────────┴────────────────┴─────────┤")
+        print(f"│ Possible │ {possible:>36}x │")
+        print("╰──────────┴───────────────────────────────────────╯\n")
 
         if possible == 0:
             print(log("Not enough materials for processing.\n", LogLevel.WARNING))
@@ -350,7 +348,6 @@ class Shop:
             print(log(f"Your {player.tool.name} is already at or above the level of {newTool.name}.", LogLevel.WARNING))
             return
 
-        # === Schöne Tabelle mit benötigten Items ===
         print("\n╭────────────────────────────────────────┬─────────╮")
         colored = colorText(str(newTool.name), '#A6C1EE')
         plain = stripColor(colored)
@@ -370,16 +367,15 @@ class Shop:
         
         print("╰───────────────────────┴────────────────┴─────────╯\n")
 
-        # Wenn etwas fehlt, Upgrade abbrechen
         if not allAvailable:
             print(log("Upgrading canceled due to insufficient upgrade ressource supply.", LogLevel.WARNING))
             return
 
-        # Backup erstellen
+        # **Critical**: safe state of inventory (deepcopy of slots)
         backupSlots = copy.deepcopy(player.inventory.slots)
         #print(log("Inventory backed up.", LogLevel.TIP))
 
-        # Materialien entfernen
+        # Remove materials from inventory
         for item, quantity in newTool.costs:
             if not player.inventory.removeItem(item, quantity):
                 print(log(f"Failed to remove {quantity}x {item.name}. Rolling back.", LogLevel.WARNING))
@@ -388,7 +384,7 @@ class Shop:
                 return
             print(log(f"Removed {quantity}x {item.name}.", LogLevel.TIP))
 
-        # Upgrade durchführen
+        # Processing upgrade
         player.tool = newTool
         print(log(f"Successfully upgraded to {newTool.name}!", LogLevel.SUCCESS))
 
@@ -396,13 +392,14 @@ class Shop:
 # Helper functions
 # -----------------------------
 
+# Word wrapping function to split text into lines of max. n characters
 def wordWrap(text: str, n: int = 50) -> list[str]:
     words = text.split()
     lines = []
     current = ""
 
     for word in words:
-        # Prüfe, ob das Hinzufügen des nächsten Wortes die Zeile überschreiten würde
+        # Check if adding the word exceeds the limit
         if len(current) + len(word) + (1 if current else 0) > n:
             lines.append(current)
             current = word
@@ -412,7 +409,7 @@ def wordWrap(text: str, n: int = 50) -> list[str]:
         lines.append(current)
     return lines
 
-# dynamic way to print all the commands with accurate spacing to the longest command
+# Dynamic way to print all the commands with accurate spacing to the longest command
 commands = [
     ("mine", [(f"<material> [<amount {{1..{Inventory.stack * 4}}}>?1|all]", "Mine a material of additional count (e.g. '... coal 5')")]),
     ("inventory", [(None, "Show your current inventory")]),
@@ -420,8 +417,6 @@ commands = [
     ("process", [("<recipe> <amount>?1", "Process material according to the recipe (e.g. '... iron_ingot 2')")]),
     ("recipe", [("<name>", "Get a recipe by name")]),
     ("upgrade", [("<tool>", "Upgrade tool to higher grade")]),
-    #("upgrade", "Let Upgrader upgrade your pickaxe (wood) to stone with 2 hard coal."),
-    #("antiquity", "Let Bizman create an antiquity."),
     ("help", [(None, "Show this help menu")]),
     ("exit", [(None, "!! Exit the game")])
 ]
@@ -620,9 +615,6 @@ def obfuscateText(text: str) -> str:
     charset = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choice(charset) if c != ' ' else ' ' for c in text)
 
-# print(gradientText("Zars\nhallo\nP14a", ("#FBC2EB", "#A6C1EE"), "bu")) # !testing
-# print(colorText("Zars\nhallo\nP14a", "#FBC2EB")) # !testing
-
 # -----------------------------
 # Main Game Loop
 # -----------------------------
@@ -634,6 +626,8 @@ def main():
     shop = Shop()
 
     print(gradientText(asciiArtPlanet, ("#E4BDD4", "#4839A1"), "td"))
+
+    # Welcome message with "story" (ironically)
     print(f"""
 Welcome on board of the {gradientText("ZarsianX", ("#E4BDD4", "#4839A1"), "lr")}, pioneer {colorText(player.name, "#FBC2EB")}! We're approaching {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"), "lr")}.
 The air is thin, the ground is rough – but you are ready. As one of the first settlers on this remote planet, it is up to you to tap into its resources and continuously improve your equipment.
@@ -655,9 +649,14 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
 ⌇ Good luck, {colorText(player.name, "#FBC2EB")}.
 ⌇ - And remember: Humanity counts on you!
 """)
+
+    # Function to handle exit
     def handleExit():
         print(f"\nMemory encrypted!\nPlanet {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'))} is waiting for you to return.\n\nData(Player('{player.name}')): [\n\t{obfuscateText('ashdih askdhaiwuihh asiudhwudbn asdhkjhwih aksjdhdwi')}\n]\n")
 
+    # --------------------------------------
+    # Command completer using prompt_toolkit
+    # --------------------------------------
     class FuzzyCompleter(Completer):
         def __init__(self, completionsDict):
             self.completions_dict = {
@@ -729,6 +728,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
             
         return CombinedCompleter()
 
+    # Initialize prompt session with history and completer
     history = InMemoryHistory()
     commandCompleter = createCompleter(player)
     session = PromptSession(
@@ -737,6 +737,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
         lexer=PygmentsLexer(PythonLexer)
     )
 
+    # Main game loop with commands
     while True:
         try:
             command = session.prompt("What do you want to do, pioneer? # ").strip().lower()
@@ -800,6 +801,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
             else:
                 print(log("Pioneer! We don't know this one. Please type 'help' to see the available commands.", LogLevel.ERROR))
 
+        # Handle exceptions where Ctrl+C is pressed
         except KeyboardInterrupt:
             handleExit()
             break
