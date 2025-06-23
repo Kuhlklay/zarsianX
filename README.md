@@ -6,4 +6,5 @@
 4. Now start the game by eather running `.venv/bin/python main.py` or executing `./launch-linux.sh`
 
 ## Windows
+Check if python is installed or install it.
 Execute the `install-win.bat` and afterwards `launch-win.bat`. Finished!
