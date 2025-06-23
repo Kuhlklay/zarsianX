@@ -727,8 +727,9 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
     )
 
     # Main game loop with commands
+    attempts = 0
+
     while True:
-        attempts = 0
         try:
             # Random speech lines for the player
             speechLines = [
@@ -751,6 +752,8 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
             ]
 
             command = session.prompt(f"{"What are you waiting for? Orders, Pioneer!" if attempts == 0 else random.choice(speechLines)} # ").strip()
+
+            attempts += 1
 
             parts = command.split()
 
@@ -801,7 +804,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
                 shop.upgrade(player, parts[1])
             elif command.startswith("recipe"):
                 if len(parts) == 2:
-                    recipeName = parts[2]
+                    recipeName = parts[1]
                     recipe = Recipe.get(recipeName)
                     if recipe:
                         printRecipe(recipe)
