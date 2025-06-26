@@ -21,7 +21,7 @@ class LogLevel(Enum):
 def log(message: str, level: LogLevel) -> str:
     color = level.value["color"]
     symbol = level.value["symbol"]
-    return f"{colorText(symbol + " " + message, color)}"
+    return f"{colorText(symbol + ' ' + message, color)}"
 
 def stripColor(text: str) -> str:
     # Remove ANSI escape sequences for colors
