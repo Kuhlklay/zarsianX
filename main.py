@@ -403,7 +403,7 @@ def wordWrap(text: str, n: int = 50) -> list[str]:
 
 # Dynamic way to print all the commands with accurate spacing to the longest command
 commands = [
-    ("mine", [(f"<material> [<amount {{1..{Inventory.stack * 4}}}>?1|all]", "Mine a material of additional count (e.g. '... coal 5')")]),
+    ("mine", [(f"<material> [<amount {{1..{Inventory.stack * 4}}}>|all]?1", "Mine a material of additional count (e.g. '... coal 5')")]),
     ("inventory", [(None, "Show your current inventory")]),
     ("status", [(None, "Show your status (name, tool, inventory)")]),
     ("process", [("<recipe> <amount>?1", "Process material according to the recipe (e.g. '... iron_ingot 2')")]),
@@ -619,7 +619,7 @@ def main():
 
     # Welcome message with "story" (ironically)
     print(f"""
-Welcome on board of the {gradientText("ZarsianX", ("#E4BDD4", "#4839A1"), "lr")}, pioneer {colorText(player.name, "#FBC2EB")}! We're approaching {gradientText("Zars P14a", ("#FBC2EB", "#A6C1EE"), "lr")}.
+Welcome on board of the {gradientText('ZarsianX', ('#E4BDD4', '#4839A1'), 'lr')}, pioneer {colorText(player.name, '#FBC2EB')}! We're approaching {gradientText('Zars P14a', ('#FBC2EB', '#A6C1EE'), 'lr')}.
 The air is thin, the ground is rough – but you are ready. As one of the first settlers on this remote planet, it is up to you to tap into its resources and continuously improve your equipment.
 
 Equipped with nothing more than a simple tool, you begin your adventure. Deep beneath the surface, coal, iron ore, and more await – ready to be discovered by you.
@@ -751,7 +751,7 @@ Type '{colorText("help", '#A7E06F')}' to see all available commands.
                 "The universe is vast, and so are your choices.",
             ]
 
-            command = session.prompt(f"{"What are you waiting for? Orders, Pioneer!" if attempts == 0 else random.choice(speechLines)} # ").strip()
+            command = session.prompt(f"{'What are you waiting for? Orders, Pioneer!' if attempts == 0 else random.choice(speechLines)} # ").strip()
 
             attempts += 1
 

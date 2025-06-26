@@ -369,7 +369,7 @@ Recipe.register("aluminium_ingot").inputs([Item.RAW_ALUMINIUM]).outputs([Item.AL
 Recipe.register("steel_ingot").inputs([(Item.IRON_INGOT, 2), Item.COAL]).outputs([Item.STEEL_INGOT]).time(2)
 Recipe.register("veridium_ingot").inputs([Item.RAW_VERIDIUM]).outputs([Item.VERIDIUM_INGOT]).time(2.0)
 Recipe.register("titanium_ingot").inputs([Item.RAW_TITANIUM, Item.COAL]).outputs([Item.TITANIUM_INGOT]).time(2.2)
-Recipe.register("zinc_ingot").inputs([Item.RAW_ZINC, Item.COAL]).outputs([Item.ZINC_INGOT]).time(2.2)
+Recipe.register("zinc_ingot").inputs([Item.RAW_ZINC]).outputs([Item.ZINC_INGOT]).time(1.4)
 
 #ResearchPoint.register(ID: str, name: str).costs(i: list[tuple[Item, int]], money: int).blocks(b: list[Block]).tools(t: list[Tool]).recipes(r: list[Recipe])
 
